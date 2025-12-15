@@ -1,0 +1,22 @@
+DROP TABLE IF EXISTS risk_scenario_recommendations;
+DROP TABLE IF EXISTS recommendation_templates;
+DROP TABLE IF EXISTS risk_scenarios;
+DROP TABLE IF EXISTS asset_controls;
+DROP TABLE IF EXISTS controls;
+DROP TABLE IF EXISTS control_types;
+DROP TABLE IF EXISTS asset_vulnerabilities;
+DROP TABLE IF EXISTS vulnerabilities;
+DROP TABLE IF EXISTS vulnerability_categories;
+DROP TABLE IF EXISTS threats;
+DROP TABLE IF EXISTS threat_categories;
+DROP TABLE IF EXISTS assets;
+DROP TABLE IF EXISTS asset_types;
+DROP TABLE IF EXISTS users;
+
+DROP TYPE IF EXISTS user_role;
+DROP TYPE IF EXISTS asset_environment;
+DROP TYPE IF EXISTS asset_vuln_status;
+DROP TYPE IF EXISTS risk_status;
+DROP TYPE IF EXISTS recommendation_status;
+DROP TYPE IF EXISTS risk_level;
+DROP TYPE IF EXISTS threat_source_type;

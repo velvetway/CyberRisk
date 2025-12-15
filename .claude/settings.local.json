@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker-compose ps:*)",
+      "Bash(docker compose:*)",
+      "Bash(psql:*)",
+      "Bash(go build:*)",
+      "Bash(/usr/local/go/bin/go build:*)",
+      "Bash(/opt/homebrew/bin/go build ./...)",
+      "Bash(/usr/local/bin/docker compose ps)",
+      "Bash(/opt/homebrew/bin/docker compose ps)",
+      "Bash(/opt/homebrew/bin/docker exec:*)",
+      "Bash(docker exec:*)",
+      "Bash(docker --version:*)",
+      "Bash(/usr/local/bin/docker exec:*)",
+      "Bash(cat:*)",
+      "Bash(/Users/velvetway/sdk/go1.25.1/bin/go build:*)",
+      "Bash(npm install)",
+      "Bash(npm run build:*)",
+      "Bash(curl:*)",
+      "Bash(pkill:*)",
+      "Bash(python3:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

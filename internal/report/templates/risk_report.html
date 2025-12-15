@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <title>Отчёт по оценке киберриска</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 28px; }
+        h1 { font-size: 24px; margin-bottom: 4px; }
+        h2 { margin-top: 24px; font-size: 18px; }
+        p, li, td, th { font-size: 13px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+        th, td { border: 1px solid #999; padding: 4px 6px; }
+        th { background: #f3f3f3; text-align: left; }
+        footer { margin-top: 40px; font-size: 11px; color: #777; text-align: right; }
+    </style>
+</head>
+<body>
+
+<h1>Отчёт по оценке киберриска</h1>
+<p><b>Дата формирования:</b> {{ .Date }}</p>
+
+<h2>1. Идентификаторы</h2>
+<table>
+    <tr><th>ИТ-актив (ID)</th><td>{{ .AssetID }}</td></tr>
+    <tr><th>Угроза (ID)</th><td>{{ .ThreatID }}</td></tr>
+</table>
+
+<h2>2. Результаты оценки</h2>
+<table>
+    <tr><th>Impact (влияние)</th><td>{{ .Impact }}</td></tr>
+    <tr><th>Likelihood (вероятность)</th><td>{{ .Likelihood }}</td></tr>
+    <tr><th>Итоговый риск (score)</th><td>{{ .Score }}</td></tr>
+    <tr><th>Уровень риска</th><td>{{ .Level }}</td></tr>
+</table>
+
+<h2>3. Рекомендации по снижению риска</h2>
+{{ if .Recommendations }}
+<ol>
+    {{ range .Recommendations }}
+    <li>
+        <b>{{ .Title }}</b>
+        <div><i>Приоритет:</i> {{ .Priority }}</div>
+        <div>{{ .Description }}</div>
+    </li>
+    {{ end }}
+</ol>
+{{ else }}
+<p>Рекомендации не сформированы.</p>
+{{ end }}
+
+<footer>
+    Локальная система оценки киберрисков • ИБ © 2025
+</footer>
+
+</body>
+</html>
