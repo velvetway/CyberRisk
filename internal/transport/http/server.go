@@ -7,6 +7,7 @@ import (
 	"Diplom/internal/repository"
 	assetService "Diplom/internal/service/asset"
 	assetVulnService "Diplom/internal/service/asset_vulnerability"
+	authService "Diplom/internal/service/auth"
 	riskService "Diplom/internal/service/risk"
 	softwareService "Diplom/internal/service/software"
 	threatService "Diplom/internal/service/threat"
@@ -18,7 +19,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func NewServer(_ context.Context, db *pgxpool.Pool) *fiber.App {
+func NewServer(_ context.Context, db *pgxpool.Pool, jwtSecret string) *fiber.App {
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			code := fiber.StatusInternalServerError
@@ -52,15 +53,17 @@ func NewServer(_ context.Context, db *pgxpool.Pool) *fiber.App {
 				})
 			}
 		}
-
-		return c.JSON(fiber.Map{
-			"status": "ok",
-		})
+		return c.JSON(fiber.Map{"status": "ok"})
 	})
 
-	// ---------- DI (репозитории и сервисы) ----------
+	// ---------- DI ----------
 
-	// Справочник ПО
+	// Auth
+	userRepo := repository.NewUserRepository(db)
+	authSvc := authService.NewService(userRepo, jwtSecret)
+	authHandler := NewAuthHandler(authSvc)
+
+	// Software
 	softwareRepo := repository.NewSoftwareRepository(db)
 	softwareSvc := softwareService.NewService(softwareRepo)
 	softwareHandler := NewSoftwareHandler(softwareSvc)
@@ -80,59 +83,80 @@ func NewServer(_ context.Context, db *pgxpool.Pool) *fiber.App {
 	vulnSvc := vulnerabilityService.NewService(vulnRepo)
 	vulnHandler := NewVulnerabilityHandler(vulnSvc)
 
-	// Asset ↔ Vulnerability links
+	// Asset-Vulnerability links
 	assetVulnRepo := repository.NewAssetVulnerabilityRepository(db)
 	assetVulnSvc := assetVulnService.NewService(assetVulnRepo)
 	assetVulnHandler := NewAssetVulnerabilityHandler(assetVulnSvc)
 
-	// Risk service (preview only, без сохранения в БД)
+	// Risk
 	riskSvc := riskService.NewService(assetRepo, threatRepo, vulnRepo, assetVulnRepo)
 	riskHandler := NewRiskHandler(riskSvc)
 
-	// ---------- Роуты ----------
+	// ---------- Public routes (no auth) ----------
 	api := app.Group("/api")
 
-	assetsGroup := api.Group("/assets")
-	assetHandler.Register(assetsGroup)
-	assetVulnHandler.Register(assetsGroup)
+	authGroup := api.Group("/auth")
+	authHandler.RegisterRoutes(authGroup) // POST /api/auth/register, POST /api/auth/login
 
-	threatHandler.Register(api.Group("/threats"))
-	vulnHandler.Register(api.Group("/vulnerabilities"))
-	// /api/risk/preview
-	riskHandler.Register(api.Group("/risk"))
-	// /api/software — справочник ПО
-	softwareHandler.Register(api.Group("/software"))
+	// ---------- Protected routes (JWT required) ----------
+	protected := api.Group("", JWTMiddleware(authSvc))
 
-	// Дополнительные алиасы для рекомендаций по ПО
-	registerSoftwareAliases(api, softwareSvc)
+	// GET /api/auth/me
+	authHandler.RegisterProtected(protected.Group("/auth"))
+
+	// Role groups
+	readOnly := protected.Group("", RequireRole("viewer", "auditor", "admin"))
+	write := protected.Group("", RequireRole("auditor", "admin"))
+	adminOnly := protected.Group("", RequireRole("admin"))
+
+	// Assets
+	assetsRead := readOnly.Group("/assets")
+	assetsRead.Get("/", assetHandler.listAssets)
+	assetsRead.Get("/:id", assetHandler.getAsset)
+	assetsRead.Get("/:assetID/vulnerabilities", assetVulnHandler.listForAsset)
+	assetsRead.Get("/:id/software/alternatives", assetHandler.assetSoftwareAlternatives)
+
+	assetsWrite := write.Group("/assets")
+	assetsWrite.Post("/", assetHandler.createAsset)
+	assetsWrite.Put("/:id", assetHandler.updateAsset)
+	assetsWrite.Post("/:assetID/vulnerabilities", assetVulnHandler.addToAsset)
+
+	assetsAdmin := adminOnly.Group("/assets")
+	assetsAdmin.Delete("/:id", assetHandler.deleteAsset)
+	assetsAdmin.Delete("/:assetID/vulnerabilities/:vulnID", assetVulnHandler.removeFromAsset)
+
+	// Threats
+	readOnly.Get("/threats", threatHandler.listThreats)
+	readOnly.Get("/threats/:id", threatHandler.getThreat)
+	write.Post("/threats", threatHandler.createThreat)
+	write.Put("/threats/:id", threatHandler.updateThreat)
+	adminOnly.Delete("/threats/:id", threatHandler.deleteThreat)
+
+	// Vulnerabilities
+	readOnly.Get("/vulnerabilities", vulnHandler.list)
+	readOnly.Get("/vulnerabilities/:id", vulnHandler.get)
+	write.Post("/vulnerabilities", vulnHandler.create)
+	write.Put("/vulnerabilities/:id", vulnHandler.update)
+	adminOnly.Delete("/vulnerabilities/:id", vulnHandler.delete)
+
+	// Risk
+	readOnly.Get("/risk/overview", riskHandler.overview)
+	readOnly.Get("/risk/asset/:id", riskHandler.assetRiskProfile)
+	write.Post("/risk/preview", riskHandler.previewRisk)
+	write.Post("/risk/report/pdf", riskHandler.GenerateRiskPDF)
+
+	// Software
+	readOnly.Get("/software", softwareHandler.listSoftware)
+	readOnly.Get("/software/categories", softwareHandler.listCategories)
+	readOnly.Get("/software/russian", softwareHandler.listRussianSoftware)
+	readOnly.Get("/software/certified", softwareHandler.listCertifiedSoftware)
+	readOnly.Get("/software/:id", softwareHandler.getSoftware)
+	write.Post("/software", softwareHandler.createSoftware)
+	write.Put("/software/:id", softwareHandler.updateSoftware)
+	adminOnly.Delete("/software/:id", softwareHandler.deleteSoftware)
+
+	// Software aliases
+	readOnly.Get("/software/asset/:assetID/alternatives", softwareHandler.assetAlternatives)
 
 	return app
-}
-
-func registerSoftwareAliases(api fiber.Router, svc softwareService.Service) {
-	api.Get("/assets/:id/software/alternatives", func(c *fiber.Ctx) error {
-		assetID, err := c.ParamsInt("id")
-		if err != nil || assetID <= 0 {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid asset id"})
-		}
-
-		data, err := svc.SuggestAlternativesForAsset(c.Context(), int64(assetID))
-		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
-		}
-		return c.JSON(data)
-	})
-
-	api.Get("/software/asset/:assetID/alternatives", func(c *fiber.Ctx) error {
-		assetID, err := c.ParamsInt("assetID")
-		if err != nil || assetID <= 0 {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid asset id"})
-		}
-
-		data, err := svc.SuggestAlternativesForAsset(c.Context(), int64(assetID))
-		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
-		}
-		return c.JSON(data)
-	})
 }

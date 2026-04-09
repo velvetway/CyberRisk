@@ -34,7 +34,7 @@ func main() {
 	log.Println("connected to database")
 
 	// 3. Создаём Fiber-приложение
-	app := httpTransport.NewServer(ctx, db)
+	app := httpTransport.NewServer(ctx, db, cfg.JWTSecret)
 
 	// 4. Запускаем сервер с graceful shutdown
 	go func() {
