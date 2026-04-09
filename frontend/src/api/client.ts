@@ -14,6 +14,19 @@ function getToken(): string | null {
     return localStorage.getItem("token");
 }
 
+/** Drop-in replacement for fetch() that adds Authorization header */
+export function authFetch(input: string, init?: RequestInit): Promise<Response> {
+    const token = getToken();
+    const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        ...(init?.headers as Record<string, string> || {}),
+    };
+    if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+    }
+    return fetch(input, { ...init, headers });
+}
+
 async function request<T>(input: string, init?: RequestInit): Promise<T> {
     const token = getToken();
     const headers: Record<string, string> = {

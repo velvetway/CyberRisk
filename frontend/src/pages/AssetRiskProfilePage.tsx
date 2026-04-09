@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { authFetch } from "../api/client";
 import { getPriorityLabel, getRiskLevelLabel, getThreatTypeLabel } from "../utils/i18n";
+import { motion } from "framer-motion";
+import { ArrowLeft, ShieldAlert, ShieldX, ChevronDown, ChevronUp, CheckCircle, AlertTriangle } from "lucide-react";
 
 interface AssetRisk {
     threat_id: number;
@@ -31,16 +34,12 @@ export const AssetRiskProfilePage: React.FC = () => {
 
     useEffect(() => {
         if (!id) return;
-
         const fetchRisks = async () => {
             setLoading(true);
             try {
-                const res = await fetch(`/api/risk/asset/${id}`);
-                if (!res.ok) {
-                    throw new Error(`Ошибка загрузки рисков: ${res.status}`);
-                }
+                const res = await authFetch(`/api/risk/asset/${id}`);
+                if (!res.ok) throw new Error(`Ошибка загрузки рисков: ${res.status}`);
                 const data: AssetRisk[] = await res.json();
-                // Сортируем по убыванию риска (score)
                 data.sort((a, b) => b.score - a.score);
                 setRisks(data);
             } catch (e: any) {
@@ -49,262 +48,143 @@ export const AssetRiskProfilePage: React.FC = () => {
                 setLoading(false);
             }
         };
-
         fetchRisks();
     }, [id]);
 
-    const getRiskStats = () => {
-        const critical = risks.filter((r) => r.level.toLowerCase() === "critical").length;
-        const high = risks.filter((r) => r.level.toLowerCase() === "high").length;
-        const medium = risks.filter((r) => r.level.toLowerCase() === "medium").length;
-        const low = risks.filter((r) => r.level.toLowerCase() === "low").length;
-        return { critical, high, medium, low, total: risks.length };
+    const stats = {
+        critical: risks.filter((r) => r.level.toLowerCase() === "critical").length,
+        high: risks.filter((r) => r.level.toLowerCase() === "high").length,
+        medium: risks.filter((r) => r.level.toLowerCase() === "medium").length,
+        low: risks.filter((r) => r.level.toLowerCase() === "low").length,
+        total: risks.length
     };
 
-    const stats = getRiskStats();
+    if (loading) return (
+        <div style={{ textAlign: "center", padding: "60px 20px" }}>
+            <div className="loading-spinner" style={{ width: "40px", height: "40px", margin: "0 auto" }} />
+            <p style={{ marginTop: "16px", color: "var(--ink-muted)" }}>Анализ рисков для актива...</p>
+        </div>
+    );
 
-    if (loading) {
-        return (
-            <div className="fade-in" style={{ textAlign: "center", padding: "60px 20px" }}>
-                <div className="loading-spinner" style={{ width: "40px", height: "40px", margin: "0 auto" }} />
-                <p style={{ marginTop: "16px", color: "var(--color-text-light)" }}>
-                    Анализ рисков для актива...
-                </p>
-            </div>
-        );
-    }
-
-    if (error) {
-        return (
-            <div className="fade-in">
-                <div
-                    className="card"
-                    style={{
-                        padding: "20px",
-                        background: "rgba(231, 76, 60, 0.05)",
-                        borderColor: "var(--color-risk-critical)",
-                    }}
-                >
-                    <p style={{ color: "var(--color-risk-critical)", margin: 0 }}>
-                        ⚠️ {error}
-                    </p>
-                </div>
-            </div>
-        );
-    }
+    if (error) return (
+        <div className="card" style={{ padding: "20px", background: "var(--threat-critical-dim)", border: "1px solid var(--danger)" }}>
+            <p style={{ color: "var(--danger)", margin: 0, fontWeight: 500 }}>⚠️ {error}</p>
+        </div>
+    );
 
     return (
-        <div className="fade-in">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }}>
             <div style={{ marginBottom: "32px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <div>
-                    <h1 style={{ marginBottom: "8px" }}>Профиль рисков актива #{id}</h1>
-                    <p style={{ color: "var(--color-text-light)", fontSize: "15px" }}>
-                        Автоматически рассчитанные риски от всех известных угроз
-                    </p>
+                    <h1>Профиль рисков актива #{id}</h1>
+                    <p style={{ color: "var(--ink-muted)" }}>Автоматически рассчитанные риски от всех известных угроз</p>
                 </div>
-                <button
-                    onClick={() => navigate("/assets")}
-                    className="btn"
-                    style={{
-                        padding: "8px 16px",
-                        background: "var(--color-surface)",
-                        border: "1px solid var(--color-border)",
-                        color: "var(--color-text)",
-                    }}
-                >
-                    ← Назад к активам
+                <button onClick={() => navigate("/assets")} className="btn">
+                    <ArrowLeft size={16} /> Назад к активам
                 </button>
             </div>
 
-            {/* Статистика рисков */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", marginBottom: "24px" }}>
-                <StatCard label="Критические" value={stats.critical} color="var(--color-risk-critical)" />
-                <StatCard label="Высокие" value={stats.high} color="var(--color-risk-high)" />
-                <StatCard label="Средние" value={stats.medium} color="var(--color-risk-medium)" />
-                <StatCard label="Низкие" value={stats.low} color="var(--color-risk-low)" />
-                <StatCard label="Всего угроз" value={stats.total} color="var(--color-text)" />
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", marginBottom: "32px" }}>
+                <StatCard label="Критические" value={stats.critical} color="var(--danger)" />
+                <StatCard label="Высокие" value={stats.high} color="var(--threat-high)" />
+                <StatCard label="Средние" value={stats.medium} color="var(--warning)" />
+                <StatCard label="Низкие" value={stats.low} color="var(--success)" />
+                <StatCard label="Всего угроз" value={stats.total} color="var(--ink)" />
             </div>
 
-            {/* Список рисков */}
             {risks.length === 0 ? (
                 <div className="card" style={{ padding: "60px 20px", textAlign: "center" }}>
-                    <h3 style={{ marginBottom: "8px", color: "var(--color-text)" }}>
-                        Риски не обнаружены
-                    </h3>
-                    <p style={{ color: "var(--color-text-light)", margin: 0 }}>
-                        Для данного актива не найдено применимых угроз или уязвимостей
-                    </p>
+                    <CheckCircle size={48} color="var(--success)" style={{ margin: "0 auto 16px" }} />
+                    <h3 style={{ marginBottom: "8px" }}>Риски не обнаружены</h3>
+                    <p style={{ color: "var(--ink-muted)", margin: 0 }}>Для данного актива не найдено применимых угроз или уязвимостей</p>
                 </div>
             ) : (
                 <div style={{ display: "grid", gap: "16px" }}>
-                    {risks.map((risk) => (
-                        <RiskCard key={risk.threat_id} risk={risk} />
-                    ))}
+                    {risks.map((risk) => <RiskCard key={risk.threat_id} risk={risk} />)}
                 </div>
             )}
-        </div>
+        </motion.div>
     );
 };
 
-const StatCard: React.FC<{ label: string; value: number; color: string }> = ({ label, value, color }) => {
-    return (
-        <div className="card" style={{ padding: "20px", textAlign: "center" }}>
-            <div style={{ fontSize: "32px", fontWeight: 700, color, marginBottom: "8px" }}>
-                {value}
-            </div>
-            <div style={{ fontSize: "13px", color: "var(--color-text-light)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                {label}
-            </div>
-        </div>
-    );
-};
+const StatCard: React.FC<{ label: string; value: number; color: string }> = ({ label, value, color }) => (
+    <div className="card" style={{ padding: "20px" }}>
+        <div style={{ fontSize: "32px", fontWeight: 700, color, marginBottom: "4px" }}>{value}</div>
+        <div style={{ fontSize: "13px", color: "var(--ink-muted)", fontWeight: 600 }}>{label}</div>
+    </div>
+);
 
 const RiskCard: React.FC<{ risk: AssetRisk }> = ({ risk }) => {
     const [expanded, setExpanded] = useState(false);
 
-    const getRiskLevelColor = (level: string): string => {
+    const getRiskColor = (level: string) => {
         switch (level.toLowerCase()) {
-            case "critical": return "var(--color-risk-critical)";
-            case "high": return "var(--color-risk-high)";
-            case "medium": return "var(--color-risk-medium)";
-            case "low": return "var(--color-risk-low)";
-            default: return "var(--color-text)";
+            case "critical": return "var(--danger)";
+            case "high": return "var(--threat-high)";
+            case "medium": return "var(--warning)";
+            case "low": return "var(--success)";
+            default: return "var(--ink)";
         }
     };
 
-    const getRiskLevelGradient = (level: string): string => {
+    const getRiskBg = (level: string) => {
         switch (level.toLowerCase()) {
-            case "critical": return "linear-gradient(135deg, rgba(231, 76, 60, 0.1) 0%, rgba(231, 76, 60, 0.05) 100%)";
-            case "high": return "linear-gradient(135deg, rgba(230, 126, 34, 0.1) 0%, rgba(230, 126, 34, 0.05) 100%)";
-            case "medium": return "linear-gradient(135deg, rgba(243, 156, 18, 0.1) 0%, rgba(243, 156, 18, 0.05) 100%)";
-            case "low": return "linear-gradient(135deg, rgba(39, 174, 96, 0.1) 0%, rgba(39, 174, 96, 0.05) 100%)";
-            default: return "var(--color-bg)";
+            case "critical": return "var(--threat-critical-dim)";
+            case "high": return "var(--threat-high-dim)";
+            case "medium": return "var(--threat-medium-dim)";
+            case "low": return "var(--threat-low-dim)";
+            default: return "var(--well)";
         }
     };
 
-    const color = getRiskLevelColor(risk.level);
+    const color = getRiskColor(risk.level);
+    const bg = getRiskBg(risk.level);
 
     return (
-        <div className="card" style={{ padding: "20px", borderLeft: `4px solid ${color}` }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px" }}>
+        <div className="card" style={{ overflow: "hidden", borderLeft: `4px solid ${color}` }}>
+            <div style={{ padding: "20px", display: "flex", gap: "24px", alignItems: "flex-start" }}>
                 <div style={{ flex: 1 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "8px" }}>
-                        <h3 style={{ margin: 0, fontSize: "18px", color: "var(--color-primary-dark)" }}>
-                            {risk.threat_name}
-                        </h3>
-                        <span
-                            style={{
-                                fontSize: "11px",
-                                color: "var(--color-text-muted)",
-                                background: "var(--color-bg)",
-                                padding: "2px 8px",
-                                borderRadius: "4px",
-                                textTransform: "uppercase",
-                                letterSpacing: "0.5px",
-                            }}
-                        >
+                        <h3 style={{ margin: 0, fontSize: "16px" }}>{risk.threat_name}</h3>
+                        <span className="badge" style={{ background: "var(--well)", color: "var(--ink-muted)" }}>
                             {getThreatTypeLabel(risk.threat_type)}
                         </span>
                     </div>
                     {risk.threat_description && (
-                        <p style={{ margin: "0 0 12px 0", color: "var(--color-text-light)", fontSize: "14px" }}>
-                            {risk.threat_description}
-                        </p>
+                        <p style={{ margin: "0", color: "var(--ink-secondary)", fontSize: "14px" }}>{risk.threat_description}</p>
                     )}
                 </div>
 
-                <div
-                    style={{
-                        padding: "16px",
-                        background: getRiskLevelGradient(risk.level),
-                        borderRadius: "var(--radius-md)",
-                        textAlign: "center",
-                        minWidth: "120px",
-                        border: `2px solid ${color}`,
-                    }}
-                >
-                    <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--color-text-light)", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                        Риск
+                <div style={{ display: "flex", gap: "16px" }}>
+                    <div style={{ textAlign: "center", padding: "10px 16px", background: "var(--well)", borderRadius: "var(--r-sm)" }}>
+                        <div style={{ fontSize: "11px", color: "var(--ink-muted)", fontWeight: 600, marginBottom: "4px" }}>I / L</div>
+                        <div style={{ fontSize: "16px", fontWeight: 700, color: "var(--ink)" }}>{risk.impact} / {risk.likelihood}</div>
                     </div>
-                    <div style={{ fontSize: "24px", fontWeight: 700, color }}>
-                        {getRiskLevelLabel(risk.level)}
-                    </div>
-                    <div style={{ fontSize: "12px", color: "var(--color-text-light)", marginTop: "4px" }}>
-                        {risk.score}/25
+                    <div style={{ textAlign: "center", padding: "10px 24px", background: bg, borderRadius: "var(--r-sm)", minWidth: "120px" }}>
+                        <div style={{ fontSize: "11px", color: color, fontWeight: 600, marginBottom: "4px" }}>УРОВЕНЬ</div>
+                        <div style={{ fontSize: "20px", fontWeight: 700, color }}>{getRiskLevelLabel(risk.level)}</div>
                     </div>
                 </div>
             </div>
 
-            {/* Метрики */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "16px", paddingTop: "16px", borderTop: "1px solid var(--color-border)" }}>
-                <div style={{ padding: "12px", background: "var(--color-bg)", borderRadius: "var(--radius-sm)", textAlign: "center" }}>
-                    <div style={{ fontSize: "11px", color: "var(--color-text-light)", marginBottom: "4px", fontWeight: 600, textTransform: "uppercase" }}>
-                        Влияние
-                    </div>
-                    <div style={{ fontSize: "24px", fontWeight: 700, color: "var(--color-primary-dark)" }}>
-                        {risk.impact}<span style={{ fontSize: "14px", color: "var(--color-text-light)" }}>/5</span>
-                    </div>
-                </div>
-                <div style={{ padding: "12px", background: "var(--color-bg)", borderRadius: "var(--radius-sm)", textAlign: "center" }}>
-                    <div style={{ fontSize: "11px", color: "var(--color-text-light)", marginBottom: "4px", fontWeight: 600, textTransform: "uppercase" }}>
-                        Вероятность
-                    </div>
-                    <div style={{ fontSize: "24px", fontWeight: 700, color: "var(--color-primary-dark)" }}>
-                        {risk.likelihood}<span style={{ fontSize: "14px", color: "var(--color-text-light)" }}>/5</span>
-                    </div>
-                </div>
-            </div>
-
-            {/* Рекомендации (сворачиваемые) */}
             {risk.recommendations && risk.recommendations.length > 0 && (
-                <div>
+                <div style={{ borderTop: "1px solid var(--perimeter)", background: "var(--ground)" }}>
                     <button
                         onClick={() => setExpanded(!expanded)}
-                        style={{
-                            width: "100%",
-                            padding: "12px",
-                            background: "var(--color-bg)",
-                            border: "1px solid var(--color-border)",
-                            borderRadius: "var(--radius-sm)",
-                            color: "var(--color-text)",
-                            fontSize: "13px",
-                            fontWeight: 600,
-                            cursor: "pointer",
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            transition: "var(--transition)",
-                        }}
+                        style={{ width: "100%", padding: "12px 20px", background: "none", border: "none", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", fontSize: "13px", fontWeight: 600, color: "var(--ink-secondary)" }}
                     >
-                        <span>📋 Рекомендации ({risk.recommendations.length})</span>
-                        <span style={{ fontSize: "18px" }}>{expanded ? "−" : "+"}</span>
+                        <span>Рекомендации по снижению риска ({risk.recommendations.length})</span>
+                        {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                     </button>
-
                     {expanded && (
-                        <div className="fade-in" style={{ marginTop: "12px", display: "grid", gap: "8px" }}>
+                        <div style={{ padding: "0 20px 20px 20px", display: "grid", gap: "12px" }}>
                             {risk.recommendations.map((rec, idx) => (
-                                <div
-                                    key={idx}
-                                    style={{
-                                        padding: "12px",
-                                        background: "var(--color-surface)",
-                                        border: "1px solid var(--color-border)",
-                                        borderRadius: "var(--radius-sm)",
-                                    }}
-                                >
-                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "4px" }}>
-                                        <h4 style={{ margin: 0, fontSize: "14px", color: "var(--color-primary-dark)" }}>
-                                            {rec.title}
-                                        </h4>
-                                        {rec.priority && (
-                                            <span className={`badge badge-${rec.priority.toLowerCase()}`}>
-                                                {getPriorityLabel(rec.priority)}
-                                            </span>
-                                        )}
+                                <div key={idx} style={{ padding: "16px", background: "var(--raised)", border: "1px solid var(--perimeter)", borderRadius: "var(--r-sm)" }}>
+                                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
+                                        <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 600 }}>{rec.title}</h4>
+                                        {rec.priority && <span className={`badge badge-${rec.priority.toLowerCase()}`}>{getPriorityLabel(rec.priority)}</span>}
                                     </div>
-                                    <p style={{ margin: "4px 0 0 0", fontSize: "12px", color: "var(--color-text-light)" }}>
-                                        {rec.description}
-                                    </p>
+                                    <p style={{ margin: 0, fontSize: "13px", color: "var(--ink-muted)" }}>{rec.description}</p>
                                 </div>
                             ))}
                         </div>
