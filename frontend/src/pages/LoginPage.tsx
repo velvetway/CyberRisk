@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import "./AuthPages.css";
 
 export const LoginPage: React.FC = () => {
     const [username, setUsername] = useState("");
@@ -25,146 +26,101 @@ export const LoginPage: React.FC = () => {
     };
 
     return (
-        <div style={styles.container}>
-            <div style={styles.card}>
-                <div style={styles.logoSection}>
-                    <div style={styles.logoIcon}>
-                        <svg width="48" height="48" viewBox="0 0 32 32" fill="none">
-                            <rect width="32" height="32" rx="8" fill="url(#g)" />
-                            <path d="M16 8L20 12H12L16 8Z M16 24L12 20H20L16 24Z M8 16L12 12V20L8 16Z M24 16L20 20V12L24 16Z" fill="white" opacity="0.9" />
-                            <defs><linearGradient id="g" x1="0" y1="0" x2="32" y2="32"><stop offset="0%" stopColor="#e74c3c" /><stop offset="100%" stopColor="#c0392b" /></linearGradient></defs>
-                        </svg>
+        <div className="auth-page">
+            <div className="auth-grid-bg" />
+            <div className="auth-scanlines" />
+            <div className="auth-glow auth-glow--top" />
+            <div className="auth-glow auth-glow--bottom" />
+
+            <div className="auth-card">
+                <div className="auth-card__header">
+                    <div className="auth-logo">
+                        <div className="auth-logo__icon">
+                            <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+                                <rect width="40" height="40" rx="6" fill="#0a0a0f" stroke="#00e5ff" strokeWidth="1.5" />
+                                <path d="M20 10L25 15H15L20 10Z M20 30L15 25H25L20 30Z M10 20L15 15V25L10 20Z M30 20L25 25V15L30 20Z" fill="#00e5ff" opacity="0.9" />
+                                <circle cx="20" cy="20" r="3" fill="none" stroke="#00e5ff" strokeWidth="1" opacity="0.5" />
+                            </svg>
+                        </div>
+                        <div className="auth-logo__text">
+                            <span className="auth-logo__title">CYBERRISK</span>
+                            <span className="auth-logo__sub">THREAT MANAGEMENT SYSTEM</span>
+                        </div>
                     </div>
-                    <h1 style={styles.title}>CyberRisk</h1>
-                    <p style={styles.subtitle}>Вход в систему</p>
+                    <div className="auth-card__divider" />
+                    <h2 className="auth-card__title">Авторизация</h2>
+                    <p className="auth-card__desc">Введите учётные данные для входа в систему</p>
                 </div>
 
-                {error && <div style={styles.error}>{error}</div>}
+                {error && (
+                    <div className="auth-alert auth-alert--error">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                            <path d="M8 1a7 7 0 100 14A7 7 0 008 1zm0 10.5a.75.75 0 110-1.5.75.75 0 010 1.5zM8.75 4.5v4a.75.75 0 01-1.5 0v-4a.75.75 0 011.5 0z"/>
+                        </svg>
+                        {error}
+                    </div>
+                )}
 
-                <form onSubmit={handleSubmit} style={styles.form}>
-                    <div style={styles.field}>
-                        <label style={styles.label}>Имя пользователя</label>
+                <form onSubmit={handleSubmit} className="auth-form">
+                    <div className="auth-field">
+                        <label className="auth-label">
+                            <span className="auth-label__icon">&#x276F;</span>
+                            Пользователь
+                        </label>
                         <input
-                            style={styles.input}
+                            className="auth-input"
                             type="text"
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
-                            placeholder="admin"
+                            placeholder="username"
                             required
                             autoFocus
+                            autoComplete="username"
                         />
                     </div>
-                    <div style={styles.field}>
-                        <label style={styles.label}>Пароль</label>
+                    <div className="auth-field">
+                        <label className="auth-label">
+                            <span className="auth-label__icon">&#x276F;</span>
+                            Пароль
+                        </label>
                         <input
-                            style={styles.input}
+                            className="auth-input"
                             type="password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            placeholder="******"
+                            placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;"
                             required
+                            autoComplete="current-password"
                         />
                     </div>
-                    <button style={styles.button} type="submit" disabled={loading}>
-                        {loading ? "Вход..." : "Войти"}
+                    <button className="auth-btn" type="submit" disabled={loading}>
+                        {loading ? (
+                            <span className="auth-btn__loading">
+                                <span className="auth-spinner" />
+                                Вход...
+                            </span>
+                        ) : (
+                            <>
+                                <span>Войти в систему</span>
+                                <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
+                                    <path d="M3 9h10M10 5l4 4-4 4" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round"/>
+                                </svg>
+                            </>
+                        )}
                     </button>
                 </form>
 
-                <p style={styles.link}>
-                    Нет аккаунта?{" "}
-                    <Link to="/register" style={styles.a}>Зарегистрироваться</Link>
-                </p>
+                <div className="auth-footer">
+                    <span className="auth-footer__text">Нет аккаунта?</span>
+                    <Link to="/register" className="auth-footer__link">Зарегистрироваться</Link>
+                </div>
+
+                <div className="auth-card__status">
+                    <span className="auth-status-dot" />
+                    <span>Система активна</span>
+                    <span className="auth-status-ver">v1.0.0</span>
+                </div>
             </div>
         </div>
     );
-};
-
-const styles: Record<string, React.CSSProperties> = {
-    container: {
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        minHeight: "100vh",
-        background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)",
-    },
-    card: {
-        background: "white",
-        borderRadius: "16px",
-        padding: "48px 40px",
-        width: "100%",
-        maxWidth: "420px",
-        boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
-    },
-    logoSection: {
-        textAlign: "center" as const,
-        marginBottom: "32px",
-    },
-    logoIcon: {
-        marginBottom: "16px",
-    },
-    title: {
-        fontSize: "28px",
-        fontWeight: 700,
-        color: "#2c3e50",
-        margin: "0 0 4px 0",
-    },
-    subtitle: {
-        fontSize: "14px",
-        color: "#7f8c8d",
-        margin: 0,
-    },
-    error: {
-        background: "#fef2f2",
-        color: "#dc2626",
-        padding: "12px 16px",
-        borderRadius: "8px",
-        fontSize: "14px",
-        marginBottom: "20px",
-        border: "1px solid #fecaca",
-    },
-    form: {
-        display: "flex",
-        flexDirection: "column" as const,
-        gap: "20px",
-    },
-    field: {
-        display: "flex",
-        flexDirection: "column" as const,
-        gap: "6px",
-    },
-    label: {
-        fontSize: "13px",
-        fontWeight: 600,
-        color: "#374151",
-    },
-    input: {
-        padding: "12px 16px",
-        borderRadius: "8px",
-        border: "1px solid #d1d5db",
-        fontSize: "15px",
-        outline: "none",
-        transition: "border-color 0.2s",
-    },
-    button: {
-        padding: "14px",
-        borderRadius: "8px",
-        border: "none",
-        background: "linear-gradient(135deg, #e74c3c, #c0392b)",
-        color: "white",
-        fontSize: "16px",
-        fontWeight: 600,
-        cursor: "pointer",
-        marginTop: "8px",
-    },
-    link: {
-        textAlign: "center" as const,
-        marginTop: "24px",
-        fontSize: "14px",
-        color: "#6b7280",
-    },
-    a: {
-        color: "#e74c3c",
-        textDecoration: "none",
-        fontWeight: 500,
-    },
 };
