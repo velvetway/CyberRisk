@@ -78,9 +78,30 @@ export const AssetsPage: React.FC = () => {
             )}
 
             {!loading && assets.length > 0 && (
+                <>
+                <div className="assets-summary">
+                    <div className="summary-stat">
+                        <span className="summary-stat__value">{assets.length}</span>
+                        <span className="summary-stat__label">Всего активов</span>
+                    </div>
+                    <div className="summary-stat">
+                        <span className="summary-stat__value summary-stat__value--critical">{assets.filter(a => a.business_criticality >= 4).length}</span>
+                        <span className="summary-stat__label">Критичных</span>
+                    </div>
+                    <div className="summary-stat">
+                        <span className="summary-stat__value summary-stat__value--prod">{assets.filter(a => a.environment === "prod").length}</span>
+                        <span className="summary-stat__label">В продакшене</span>
+                    </div>
+                    <div className="summary-stat">
+                        <span className="summary-stat__value">{(assets.reduce((s, a) => s + a.business_criticality, 0) / assets.length).toFixed(1)}</span>
+                        <span className="summary-stat__label">Средняя критичность</span>
+                    </div>
+                </div>
                 <div className="assets-grid">
-                    {assets.map((asset) => (
-                        <div key={asset.id} className="card asset-card">
+                    {assets.map((asset) => {
+                        const critClass = asset.business_criticality >= 4 ? "asset-card--critical" : asset.business_criticality >= 3 ? "asset-card--medium" : "asset-card--low";
+                        return (
+                        <div key={asset.id} className={`card asset-card ${critClass}`}>
                             <div className="asset-card__top">
                                 <div className="asset-card__info">
                                     <div className="asset-card__name-row">
@@ -127,8 +148,10 @@ export const AssetsPage: React.FC = () => {
 
                             <AltsPanel assetId={asset.id} />
                         </div>
-                    ))}
+                    );
+                    })}
                 </div>
+                </>
             )}
         </div>
     );
