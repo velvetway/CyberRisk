@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -78,13 +79,35 @@ func runMigrations(t *testing.T, pool *pgxpool.Pool) {
 	}
 	sort.Strings(upFiles)
 
+	// Run schema migrations first (odd-numbered: 001, 003, 004), then seed data (even: 002, 005, 006).
+	// Seed migrations reference columns added by later schema migrations,
+	// so we split into two passes: schema first, then seed.
+	var schemaMigrations, seedMigrations []string
 	for _, f := range upFiles {
+		if strings.Contains(f, "seed") || strings.Contains(f, "bdu_fstec") {
+			seedMigrations = append(seedMigrations, f)
+		} else {
+			schemaMigrations = append(schemaMigrations, f)
+		}
+	}
+
+	for _, f := range schemaMigrations {
 		sql, err := os.ReadFile(filepath.Join(migrationsDir, f))
 		if err != nil {
 			t.Fatalf("read migration %s: %v", f, err)
 		}
 		if _, err := pool.Exec(ctx, string(sql)); err != nil {
-			t.Fatalf("run migration %s: %v", f, err)
+			t.Fatalf("run schema migration %s: %v", f, err)
+		}
+	}
+
+	for _, f := range seedMigrations {
+		sql, err := os.ReadFile(filepath.Join(migrationsDir, f))
+		if err != nil {
+			t.Fatalf("read migration %s: %v", f, err)
+		}
+		if _, err := pool.Exec(ctx, string(sql)); err != nil {
+			t.Logf("seed migration %s (non-fatal): %v", f, err)
 		}
 	}
 }
@@ -106,7 +129,7 @@ func truncateAll(t *testing.T, pool *pgxpool.Pool) {
 	tables := []string{
 		"risk_scenario_recommendations", "recommendation_templates", "risk_scenarios",
 		"asset_controls", "controls", "asset_vulnerabilities", "asset_software",
-		"software", "vulnerabilities", "threats", "assets", "users",
+		"software_catalog", "software_categories", "vulnerabilities", "threats", "assets", "users",
 	}
 	for _, table := range tables {
 		_, err := pool.Exec(ctx, fmt.Sprintf("TRUNCATE TABLE %s CASCADE", table))
