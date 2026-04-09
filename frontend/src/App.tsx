@@ -59,24 +59,14 @@ const AppLayout: React.FC = () => {
                 <div className="header-content">
                     <div className="logo-section">
                         <div className="logo-icon">
-                            <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-                                <rect width="32" height="32" rx="8" fill="url(#gradient)" />
-                                <path
-                                    d="M16 8L20 12H12L16 8Z M16 24L12 20H20L16 24Z M8 16L12 12V20L8 16Z M24 16L20 20V12L24 16Z"
-                                    fill="white"
-                                    opacity="0.9"
-                                />
-                                <defs>
-                                    <linearGradient id="gradient" x1="0" y1="0" x2="32" y2="32">
-                                        <stop offset="0%" stopColor="#e74c3c" />
-                                        <stop offset="100%" stopColor="#c0392b" />
-                                    </linearGradient>
-                                </defs>
+                            <svg width="28" height="28" viewBox="0 0 40 40" fill="none">
+                                <rect width="40" height="40" rx="6" fill="#0a0a14" stroke="#00e5ff" strokeWidth="1.5" />
+                                <path d="M20 10L25 15H15L20 10Z M20 30L15 25H25L20 30Z M10 20L15 15V25L10 20Z M30 20L25 25V15L30 20Z" fill="#00e5ff" opacity="0.9" />
                             </svg>
                         </div>
                         <div className="logo-text">
-                            <div className="logo-title">CyberRisk</div>
-                            <div className="logo-subtitle">Управление киберрисками</div>
+                            <div className="logo-title">CYBERRISK</div>
+                            <div className="logo-subtitle">Threat Management</div>
                         </div>
                     </div>
 
