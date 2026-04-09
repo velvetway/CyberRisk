@@ -1,0 +1,274 @@
+// src/pages/RiskPreviewPage.tsx
+import React, { useEffect, useState } from "react";
+import {
+    Asset,
+    Threat,
+    RiskPreviewResponse,
+    RiskRecommendation,
+} from "../types";
+import { RiskHeatmapSingle } from "../components/RiskHeatmapSingle";
+
+export const RiskPreviewPage: React.FC = () => {
+    const [assets, setAssets] = useState<Asset[]>([]);
+    const [threats, setThreats] = useState<Threat[]>([]);
+    const [selectedAssetId, setSelectedAssetId] = useState<number | "">("");
+    const [selectedThreatId, setSelectedThreatId] = useState<number | "">("");
+
+    const [result, setResult] = useState<RiskPreviewResponse | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    // Подгружаем активы и угрозы при открытии страницы
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const [assetsRes, threatsRes] = await Promise.all([
+                    fetch("/api/assets"),
+                    fetch("/api/threats"),
+                ]);
+
+                if (!assetsRes.ok) {
+                    throw new Error(`Ошибка загрузки активов: HTTP ${assetsRes.status}`);
+                }
+                if (!threatsRes.ok) {
+                    throw new Error(
+                        `Ошибка загрузки угроз: HTTP ${threatsRes.status}`,
+                    );
+                }
+
+                const assetsJson: Asset[] = await assetsRes.json();
+                const threatsJson: Threat[] = await threatsRes.json();
+
+                setAssets(assetsJson);
+                setThreats(threatsJson);
+
+                if (assetsJson.length > 0) {
+                    setSelectedAssetId(assetsJson[0].id);
+                }
+                if (threatsJson.length > 0) {
+                    setSelectedThreatId(threatsJson[0].id);
+                }
+            } catch (e: any) {
+                setError(e.message || "Ошибка загрузки данных");
+            }
+        };
+
+        fetchData();
+    }, []);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError(null);
+        setResult(null);
+
+        if (!selectedAssetId || !selectedThreatId) {
+            setError("Выберите ИТ-актив и угрозу.");
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const res = await fetch("/api/risk/preview", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    asset_id: selectedAssetId,
+                    threat_id: selectedThreatId,
+                }),
+            });
+
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error(
+                    `Ошибка HTTP ${res.status}${
+                        text ? `: ${text}` : ""
+                    }`,
+                );
+            }
+
+            const json: RiskPreviewResponse = await res.json();
+            setResult(json);
+        } catch (e: any) {
+            setError(e.message || "Ошибка при расчёте риска");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const renderRecommendations = (recs: RiskRecommendation[]) => {
+        if (!recs || recs.length === 0) return null;
+
+        const priorityLabel = (p: RiskRecommendation["priority"]) => {
+            if (p === "high") return "Высокий приоритет";
+            if (p === "medium") return "Средний приоритет";
+            return "Низкий приоритет";
+        };
+
+        return (
+            <>
+                <hr style={{ margin: "12px 0" }} />
+                <h3 style={{ marginTop: 0 }}>Рекомендации</h3>
+                <ul style={{ paddingLeft: 18, fontSize: 13 }}>
+                    {recs.map((rec) => (
+                        <li key={rec.code} style={{ marginBottom: 8 }}>
+                            <div>
+                                <b>{rec.title}</b>{" "}
+                                <span style={{ color: "#777" }}>
+                  ({priorityLabel(rec.priority)})
+                </span>
+                            </div>
+                            <div>{rec.description}</div>
+                        </li>
+                    ))}
+                </ul>
+            </>
+        );
+    };
+
+    return (
+        <div style={{ padding: 24 }}>
+            <h1 style={{ marginTop: 0 }}>Расчёт риска киберугрозы</h1>
+
+            <p style={{ maxWidth: 720, fontSize: 14 }}>
+                Выберите ИТ-актив и угрозу, после чего система рассчитает влияние,
+                вероятность и уровень риска с учётом уязвимостей, связанных с активом.
+            </p>
+
+            {/* Форма выбора активов и угроз */}
+            <form
+                onSubmit={handleSubmit}
+                style={{
+                    display: "flex",
+                    gap: 12,
+                    alignItems: "center",
+                    marginBottom: 20,
+                    flexWrap: "wrap",
+                }}
+            >
+                <div>
+                    <label style={{ fontSize: 14, marginRight: 8 }}>ИТ-актив:</label>
+                    <select
+                        value={selectedAssetId}
+                        onChange={(e) =>
+                            setSelectedAssetId(
+                                e.target.value ? Number(e.target.value) : "",
+                            )
+                        }
+                    >
+                        {assets.map((a) => (
+                            <option key={a.id} value={a.id}>
+                                #{a.id} — {a.name}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+
+                <div>
+                    <label style={{ fontSize: 14, marginRight: 8 }}>Угроза:</label>
+                    <select
+                        value={selectedThreatId}
+                        onChange={(e) =>
+                            setSelectedThreatId(
+                                e.target.value ? Number(e.target.value) : "",
+                            )
+                        }
+                    >
+                        {threats.map((t) => (
+                            <option key={t.id} value={t.id}>
+                                #{t.id} — {t.name}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+
+                <button
+                    type="submit"
+                    disabled={loading || !selectedAssetId || !selectedThreatId}
+                    style={{
+                        padding: "6px 14px",
+                        fontSize: 14,
+                        borderRadius: 4,
+                        border: "1px solid #c62828",
+                        background: loading ? "#ef9a9a" : "#c62828",
+                        color: "#fff",
+                        cursor: loading ? "default" : "pointer",
+                    }}
+                >
+                    {loading ? "Расчёт..." : "Провести оценку"}
+                </button>
+            </form>
+
+            {error && (
+                <div
+                    style={{
+                        marginBottom: 16,
+                        padding: 10,
+                        borderRadius: 4,
+                        background: "#ffebee",
+                        color: "#b71c1c",
+                        fontSize: 13,
+                    }}
+                >
+                    Ошибка: {error}
+                </div>
+            )}
+
+            {/* Результаты расчёта */}
+            {result && (
+                <div
+                    style={{
+                        display: "flex",
+                        gap: 24,
+                        alignItems: "flex-start",
+                        flexWrap: "wrap",
+                    }}
+                >
+                    {/* Левая колонка — числовые показатели + рекомендации */}
+                    <div
+                        style={{
+                            padding: 16,
+                            border: "1px solid #ddd",
+                            borderRadius: 4,
+                            background: "#fff",
+                            minWidth: 260,
+                            maxWidth: 420,
+                        }}
+                    >
+                        <h2 style={{ marginTop: 0 }}>Числовые показатели</h2>
+                        <p>
+                            <b>Влияние (Impact):</b> {result.impact}
+                        </p>
+                        <p>
+                            <b>Вероятность (Likelihood):</b> {result.likelihood}
+                        </p>
+                        <p>
+                            <b>Итоговый риск:</b> {result.score}
+                        </p>
+                        <p>
+                            <b>Уровень риска:</b> {result.level}
+                        </p>
+
+                        {renderRecommendations(result.recommendations)}
+                    </div>
+
+                    {/* Правая колонка — позиция на матрице */}
+                    <div>
+                        <h2 style={{ marginTop: 0 }}>Позиция риска на матрице</h2>
+                        <RiskHeatmapSingle
+                            impact={result.impact}
+                            likelihood={result.likelihood}
+                            level={result.level}
+                            score={result.score}
+                        />
+                        <p style={{ fontSize: 13, marginTop: 8 }}>
+                            Итоговый риск (Impact × Likelihood): {result.score} (
+                            {result.impact} × {result.likelihood})
+                        </p>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};

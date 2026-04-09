@@ -1,0 +1,224 @@
+// src/pages/RiskMapPage.tsx
+import React, { useEffect, useState, useMemo } from "react";
+import * as d3 from "d3";
+import { api } from "../api/client";
+import { RiskOverviewPoint } from "../types";
+
+export const RiskMapPage: React.FC = () => {
+    const [points, setPoints] = useState<RiskOverviewPoint[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [hover, setHover] = useState<RiskOverviewPoint | null>(null);
+
+    useEffect(() => {
+        setLoading(true);
+        api
+            .getRiskOverview()
+            .then((data) => {
+                setPoints(data);
+                setError(null);
+            })
+            .catch((e) => setError(e.message || "Не удалось загрузить карту рисков"))
+            .finally(() => setLoading(false));
+    }, []);
+
+    const width = 520;
+    const height = 520;
+    const padding = { top: 40, right: 40, bottom: 50, left: 50 };
+
+    const innerWidth = width - padding.left - padding.right;
+    const innerHeight = height - padding.top - padding.bottom;
+
+    const xScale = useMemo(
+        () =>
+            d3
+                .scaleBand<number>()
+                .domain([1, 2, 3, 4, 5])
+                .range([0, innerWidth])
+                .paddingInner(0.05),
+        [innerWidth]
+    );
+
+    const yScale = useMemo(
+        () =>
+            d3
+                .scaleBand<number>()
+                .domain([5, 4, 3, 2, 1])
+                .range([0, innerHeight])
+                .paddingInner(0.05),
+        [innerHeight]
+    );
+
+    const colorScale = useMemo(
+        () =>
+            d3
+                .scaleLinear<string>()
+                .domain([1, 25])
+                .range(["#e3f2fd", "#b71c1c"]),
+        []
+    );
+
+    const levelsColor: Record<string, string> = {
+        Low: "#81c784",
+        Medium: "#ffb74d",
+        High: "#e57373",
+        Critical: "#c62828",
+    };
+
+    const cells: { x: number; y: number; i: number; j: number }[] = [];
+    Array.from({ length: 5 }, (_, i) => i + 1).forEach((lik) => {
+        Array.from({ length: 5 }, (_, i) => i + 1).forEach((imp) => {
+            const x = xScale(lik) ?? 0;
+            const y = yScale(imp) ?? 0;
+            cells.push({ x, y, i: imp, j: lik });
+        });
+    });
+
+    return (
+        <div style={{ padding: "24px" }}>
+            <h1>Карта рисков</h1>
+            <p style={{ maxWidth: 720, fontSize: 14, color: "#555" }}>
+                На матрице отражены все сценарии вида «ИТ-актив × угроза».
+                Положение точки соответствует сочетанию влияния (Impact) и
+                вероятности реализации угрозы (Likelihood), а цвет — уровню риска.
+            </p>
+
+            {loading && <p>Загрузка...</p>}
+            {error && <p style={{ color: "red" }}>Ошибка: {error}</p>}
+
+            {!loading && !error && (
+                <div style={{ display: "flex", gap: 24, flexWrap: "wrap", marginTop: 16 }}>
+                    <svg width={width} height={height} style={{ border: "1px solid #ddd", background: "#fff" }}>
+                        <g transform={`translate(${padding.left},${padding.top})`}>
+                            {/* фоновые клетки */}
+                            {cells.map((cell) => (
+                                <rect
+                                    key={`${cell.i}-${cell.j}`}
+                                    x={cell.x}
+                                    y={cell.y}
+                                    width={xScale.bandwidth()}
+                                    height={yScale.bandwidth()}
+                                    fill="#fafafa"
+                                    stroke="#e0e0e0"
+                                />
+                            ))}
+
+                            {/* точки сценариев */}
+                            {points.map((p, idx) => {
+                                const cx = (xScale(p.likelihood) ?? 0) + xScale.bandwidth() / 2;
+                                const cy = (yScale(p.impact) ?? 0) + yScale.bandwidth() / 2;
+                                const baseColor = colorScale(p.score);
+                                const levelColor = levelsColor[p.level] || baseColor;
+
+                                return (
+                                    <circle
+                                        key={idx}
+                                        cx={cx}
+                                        cy={cy}
+                                        r={6}
+                                        fill={levelColor}
+                                        fillOpacity={0.85}
+                                        stroke="#333"
+                                        strokeWidth={hover === p ? 2 : 0.8}
+                                        onMouseEnter={() => setHover(p)}
+                                        onMouseLeave={() => setHover(null)}
+                                    />
+                                );
+                            })}
+
+                            {/* подписи по X */}
+                            {[1, 2, 3, 4, 5].map((val) => (
+                                <text
+                                    key={`x-${val}`}
+                                    x={(xScale(val) ?? 0) + xScale.bandwidth() / 2}
+                                    y={innerHeight + 18}
+                                    textAnchor="middle"
+                                    fontSize={11}
+                                >
+                                    {val}
+                                </text>
+                            ))}
+
+                            {/* подписи по Y */}
+                            {[1, 2, 3, 4, 5].map((val) => (
+                                <text
+                                    key={`y-${val}`}
+                                    x={-8}
+                                    y={(yScale(val) ?? 0) + yScale.bandwidth() / 2 + 3}
+                                    textAnchor="end"
+                                    fontSize={11}
+                                >
+                                    {val}
+                                </text>
+                            ))}
+
+                            {/* подписи осей */}
+                            <text
+                                x={innerWidth / 2}
+                                y={innerHeight + 36}
+                                textAnchor="middle"
+                                fontSize={12}
+                            >
+                                Вероятность
+                            </text>
+
+                            <text
+                                x={-34}
+                                y={innerHeight / 2}
+                                textAnchor="middle"
+                                fontSize={12}
+                                transform={`rotate(-90, -34, ${innerHeight / 2})`}
+                            >
+                                Влияние
+                            </text>
+                        </g>
+                    </svg>
+
+                    <div style={{ minWidth: 260 }}>
+                        <h2 style={{ marginTop: 0 }}>Детали сценария</h2>
+                        {!hover && <p style={{ fontSize: 13, color: "#666" }}>Наведите курсор на точку, чтобы увидеть подробности.</p>}
+                        {hover && (
+                            <div
+                                style={{
+                                    border: "1px solid #ddd",
+                                    borderRadius: 4,
+                                    padding: 12,
+                                    background: "#fff",
+                                    fontSize: 13,
+                                }}
+                            >
+                                <p>
+                                    <b>Актив:</b> #{hover.asset_id} — {hover.asset_name}
+                                </p>
+                                <p>
+                                    <b>Угроза:</b> #{hover.threat_id} — {hover.threat_name}
+                                </p>
+                                <p>
+                                    <b>Impact:</b> {hover.impact}
+                                </p>
+                                <p>
+                                    <b>Likelihood:</b> {hover.likelihood}
+                                </p>
+                                <p>
+                                    <b>Итоговый риск:</b> {hover.score}
+                                </p>
+                                <p>
+                                    <b>Уровень риска:</b> {hover.level}</p>
+                            </div>
+                        )}
+
+                        <div style={{ marginTop: 16, fontSize: 12 }}>
+                            <b>Условная легенда уровней:</b>
+                            <ul>
+                                <li><span style={{ color: "#81c784" }}>●</span> Low — низкий</li>
+                                <li><span style={{ color: "#ffb74d" }}>●</span> Medium — средний</li>
+                                <li><span style={{ color: "#e57373" }}>●</span> High — высокий</li>
+                                <li><span style={{ color: "#c62828" }}>●</span> Critical — критический</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
