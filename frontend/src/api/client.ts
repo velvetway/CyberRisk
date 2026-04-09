@@ -10,14 +10,31 @@ import {
     AssetSoftwareAlternative,
 } from "../types";
 
+function getToken(): string | null {
+    return localStorage.getItem("token");
+}
+
 async function request<T>(input: string, init?: RequestInit): Promise<T> {
+    const token = getToken();
+    const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        ...(init?.headers as Record<string, string> || {}),
+    };
+    if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+    }
+
     const res = await fetch(input, {
-        headers: {
-            "Content-Type": "application/json",
-            ...(init?.headers || {}),
-        },
         ...init,
+        headers,
     });
+
+    if (res.status === 401) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        window.dispatchEvent(new Event("auth:logout"));
+        throw new Error("Сессия истекла. Войдите снова.");
+    }
 
     if (!res.ok) {
         let message = `HTTP ${res.status}`;
@@ -42,6 +59,52 @@ async function request<T>(input: string, init?: RequestInit): Promise<T> {
     }
 
     return JSON.parse(text) as T;
+}
+
+// Auth API (no token needed)
+export interface LoginResponse {
+    token: string;
+}
+
+export interface UserResponse {
+    id: number;
+    username: string;
+    role: string;
+    is_active: boolean;
+}
+
+export async function loginAPI(username: string, password: string): Promise<LoginResponse> {
+    const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+    });
+    if (!res.ok) {
+        let message = "Ошибка входа";
+        try {
+            const data = await res.json();
+            if (data?.error) message = data.error;
+        } catch {}
+        throw new Error(message);
+    }
+    return res.json();
+}
+
+export async function registerAPI(username: string, password: string, role: string): Promise<UserResponse> {
+    const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password, role }),
+    });
+    if (!res.ok) {
+        let message = "Ошибка регистрации";
+        try {
+            const data = await res.json();
+            if (data?.error) message = data.error;
+        } catch {}
+        throw new Error(message);
+    }
+    return res.json();
 }
 
 export const api = {
@@ -78,7 +141,6 @@ export const api = {
         try {
             return await request<AssetSoftwareAlternative[]>(`/api/assets/${id}/software/alternatives`);
         } catch (err) {
-            // Для совместимости с новыми версиями API пробуем fallback-эндпоинт
             return request<AssetSoftwareAlternative[]>(`/api/software/asset/${id}/alternatives`);
         }
     },
