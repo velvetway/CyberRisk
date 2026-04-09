@@ -37,9 +37,8 @@ export const LoginPage: React.FC = () => {
                     <div className="auth-logo">
                         <div className="auth-logo__icon">
                             <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
-                                <rect width="40" height="40" rx="6" fill="#0a0a0f" stroke="#00e5ff" strokeWidth="1.5" />
-                                <path d="M20 10L25 15H15L20 10Z M20 30L15 25H25L20 30Z M10 20L15 15V25L10 20Z M30 20L25 25V15L30 20Z" fill="#00e5ff" opacity="0.9" />
-                                <circle cx="20" cy="20" r="3" fill="none" stroke="#00e5ff" strokeWidth="1" opacity="0.5" />
+                                <rect width="40" height="40" rx="8" fill="var(--raised)" stroke="var(--perimeter-emphasis)" strokeWidth="1" />
+                                <path d="M20 10L25 15H15L20 10Z M20 30L15 25H25L20 30Z M10 20L15 15V25L10 20Z M30 20L25 25V15L30 20Z" fill="var(--command)" opacity="0.6" />
                             </svg>
                         </div>
                         <div className="auth-logo__text">

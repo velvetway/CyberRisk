@@ -13,9 +13,9 @@ import { RegisterPage } from "./pages/RegisterPage";
 import "./App.css";
 
 const roleBadge: Record<string, { label: string; color: string }> = {
-    admin: { label: "Админ", color: "#e74c3c" },
-    auditor: { label: "Аудитор", color: "#f39c12" },
-    viewer: { label: "Просмотр", color: "#3498db" },
+    admin: { label: "Админ", color: "#e05468" },
+    auditor: { label: "Аудитор", color: "#f0a830" },
+    viewer: { label: "Просмотр", color: "#5b8def" },
 };
 
 const UserSection: React.FC = () => {
@@ -59,14 +59,14 @@ const AppLayout: React.FC = () => {
                 <div className="header-content">
                     <div className="logo-section">
                         <div className="logo-icon">
-                            <svg width="28" height="28" viewBox="0 0 40 40" fill="none">
-                                <rect width="40" height="40" rx="6" fill="#0a0a14" stroke="#00e5ff" strokeWidth="1.5" />
-                                <path d="M20 10L25 15H15L20 10Z M20 30L15 25H25L20 30Z M10 20L15 15V25L10 20Z M30 20L25 25V15L30 20Z" fill="#00e5ff" opacity="0.9" />
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                <rect width="24" height="24" rx="5" fill="var(--raised)" stroke="var(--perimeter-emphasis)" strokeWidth="1" />
+                                <path d="M12 5l4 4H8l4-4zm0 14l-4-4h8l-4 4zM5 12l4-4v8l-4-4zm14 0l-4 4V8l4 4z" fill="var(--command)" opacity="0.7" />
                             </svg>
                         </div>
                         <div className="logo-text">
                             <div className="logo-title">CYBERRISK</div>
-                            <div className="logo-subtitle">Threat Management</div>
+                            <div className="logo-subtitle">Управление рисками</div>
                         </div>
                     </div>
 
