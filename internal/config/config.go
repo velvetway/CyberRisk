@@ -5,8 +5,9 @@ import (
 )
 
 type Config struct {
-	DBDSN    string
-	HTTPPort string
+	DBDSN     string
+	HTTPPort  string
+	JWTSecret string
 }
 
 // Load загружает конфиг из переменных окружения.
@@ -23,8 +24,14 @@ func Load() (*Config, error) {
 		port = "8081"
 	}
 
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		jwtSecret = "dev-secret-change-me"
+	}
+
 	return &Config{
-		DBDSN:    dsn,
-		HTTPPort: port,
+		DBDSN:     dsn,
+		HTTPPort:  port,
+		JWTSecret: jwtSecret,
 	}, nil
 }
