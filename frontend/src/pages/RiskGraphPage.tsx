@@ -3,7 +3,7 @@ import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { authFetch } from "../api/client";
 import { AttackPath } from "../types/riskGraph";
-import { Btn, Card, Icon, RiskBadge } from "../components/design";
+import { Btn, Card, Icon, PtsziFormula, RiskBadge } from "../components/design";
 
 type Level = 'critical' | 'high' | 'medium' | 'low' | 'info';
 
@@ -291,20 +291,8 @@ export const RiskGraphPage: React.FC = () => {
         {/* PTSZI breakdown panel */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <Card title="Формула ПТСЗИ" subtitle="Выбранный сценарий" dense>
-            <div style={{
-              padding: '14px 16px',
-              background: 'var(--bg-elev-2)',
-              border: '1px solid var(--border-strong)',
-              borderRadius: 'var(--r-md)',
-              fontFamily: 'var(--font-mono)',
-              fontSize: 15, textAlign: 'center', letterSpacing: '-0.01em',
-              marginBottom: 14,
-            }}>
-              <span style={{ color: 'var(--accent)', fontSize: 20, fontWeight: 600 }}>W</span>
-              <span style={{ color: 'var(--fg-muted)', margin: '0 6px' }}>=</span>
-              <span style={{ color: 'var(--fg)' }}>(Q<sup>th</sup> + q + (1−Q<sup>re</sup>))</span>
-              <span style={{ color: 'var(--fg-muted)' }}> / 3 · </span>
-              <span style={{ color: 'var(--risk-medium)' }}>Z</span>
+            <div style={{ marginBottom: 14 }}>
+              <PtsziFormula size="lg" align="center" />
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { Card, RiskBadge } from "../components/design";
+import { Card, PtsziFormula, RiskBadge } from "../components/design";
 
 type Level = 'critical' | 'high' | 'medium' | 'low';
 
@@ -48,12 +48,15 @@ export const RiskPreviewPage: React.FC = () => {
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}
       style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}
     >
-      <div>
-        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--fg-dim)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Симулятор риска · «что если»</div>
-        <h1 style={{ margin: 0, fontSize: 'var(--text-2xl)', fontWeight: 600, letterSpacing: '-0.02em' }}>Интерактивная модель ПТСЗИ</h1>
-        <div style={{ fontSize: 'var(--text-sm)', color: 'var(--fg-muted)', marginTop: 4 }}>
-          Подвигайте ползунки чтобы смоделировать вес сценария W = (Q^th + q + (1−Q^re)) / 3 · Z
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div>
+          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--fg-dim)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Симулятор риска · «что если»</div>
+          <h1 style={{ margin: 0, fontSize: 'var(--text-2xl)', fontWeight: 600, letterSpacing: '-0.02em' }}>Интерактивная модель ПТСЗИ</h1>
+          <div style={{ fontSize: 'var(--text-sm)', color: 'var(--fg-muted)', marginTop: 4 }}>
+            Подвигайте ползунки чтобы смоделировать вес сценария
+          </div>
         </div>
+        <PtsziFormula size="lg" align="left" />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>

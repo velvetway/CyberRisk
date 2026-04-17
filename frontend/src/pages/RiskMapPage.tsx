@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 import { authFetch } from "../api/client";
 import { RiskOverviewPoint } from "../types";
 import { Btn, Card, Chip, Icon, RiskBadge } from "../components/design";
@@ -82,9 +83,8 @@ export const RiskMapPage: React.FC = () => {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <Btn variant="outline" icon={<Icon name="filter" size={13} />}>Фильтры</Btn>
-          <Btn variant="outline" icon={<Icon name="download" size={13} />}>PDF-отчёт</Btn>
-          <Btn variant="primary" icon={<Icon name="plus" size={13} />}>Новый сценарий</Btn>
+          <Btn variant="outline" icon={<Icon name="download" size={13} />} onClick={() => toast('PDF-экспорт: в разработке')}>PDF-отчёт</Btn>
+          <Btn variant="primary" icon={<Icon name="plus" size={13} />} onClick={() => navigate('/risk/preview')}>Новый сценарий</Btn>
         </div>
       </div>
 

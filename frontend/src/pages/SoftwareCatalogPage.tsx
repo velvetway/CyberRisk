@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
+import toast from "react-hot-toast";
 import { authFetch } from "../api/client";
 import { Software, SoftwareCategory } from "../types";
 import { Btn, Chip, Icon, StatCard } from "../components/design";
@@ -62,8 +63,8 @@ export const SoftwareCatalogPage: React.FC = () => {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <Btn variant="outline" icon={<Icon name="refresh" size={13} />}>Синхронизация реестра</Btn>
-          <Btn variant="primary" icon={<Icon name="plus" size={13} />}>Добавить ПО</Btn>
+          <Btn variant="outline" icon={<Icon name="refresh" size={13} />} onClick={() => toast('Синхронизация с реестром Минцифры: в разработке')}>Синхронизация реестра</Btn>
+          <Btn variant="primary" icon={<Icon name="plus" size={13} />} onClick={() => toast('Добавление ПО: в разработке')}>Добавить ПО</Btn>
         </div>
       </div>
 

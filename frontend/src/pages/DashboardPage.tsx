@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { authFetch } from "../api/client";
 import { Asset, RiskOverviewPoint } from "../types";
-import { Btn, Card, Chip, Icon, RiskBadge, Sparkline, StatCard } from "../components/design";
+import { Btn, Card, Chip, Icon, PtsziFormula, RiskBadge, Sparkline, StatCard } from "../components/design";
 import { useNavigate } from "react-router-dom";
 
 type Level = 'critical' | 'high' | 'medium' | 'low';
@@ -225,15 +225,25 @@ export const DashboardPage: React.FC = () => {
 
       {/* PTSZI formula callout */}
       <Card title="Формула ПТСЗИ · центральный алгоритм оценки" subtitle="docs/risk-model.md" dense>
-        <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 24, alignItems: 'center' }}>
-          <div style={{ padding: '14px 20px', background: 'var(--bg-elev-2)', border: '1px solid var(--border)', borderRadius: 'var(--r-md)', fontFamily: 'var(--font-mono)', fontSize: 18, letterSpacing: '-0.02em', color: 'var(--fg)' }}>
-            <span style={{ color: 'var(--accent)' }}>W</span> = ( Q<sup>th</sup> + q + (1 − Q<sup>re</sup>) ) / 3 · <span style={{ color: 'var(--risk-medium)' }}>Z</span>
-          </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <PtsziFormula size="xl" align="center" />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, fontSize: 'var(--text-xs)' }}>
-            <div><div style={{ color: 'var(--fg-dim)', marginBottom: 2 }}>Q<sup>th</sup> · потенциал</div><div className="num">угроза, 0–1</div></div>
-            <div><div style={{ color: 'var(--fg-dim)', marginBottom: 2 }}>q · уязвимость</div><div className="num">веса БДУ, 0–1</div></div>
-            <div><div style={{ color: 'var(--fg-dim)', marginBottom: 2 }}>Q<sup>re</sup> · реакция</div><div className="num">зрелость СЗИ, 0–1</div></div>
-            <div><div style={{ color: 'var(--fg-dim)', marginBottom: 2 }}>Z · деструкт.</div><div className="num">ущерб действия</div></div>
+            <div style={{ padding: 10, background: 'var(--bg-elev-2)', borderRadius: 'var(--r-sm)', border: '1px solid var(--border)' }}>
+              <div style={{ color: 'var(--risk-critical)', fontWeight: 600, marginBottom: 4, fontSize: 13 }}><span style={{ fontStyle: 'italic' }}>Q</span><sup style={{ fontSize: 9, position: 'relative', top: -6, marginLeft: 2 }}>th</sup> · потенциал угрозы</div>
+              <div className="num" style={{ color: 'var(--fg-muted)' }}>0 … 1 — из БДУ ФСТЭК</div>
+            </div>
+            <div style={{ padding: 10, background: 'var(--bg-elev-2)', borderRadius: 'var(--r-sm)', border: '1px solid var(--border)' }}>
+              <div style={{ color: 'var(--risk-high)', fontWeight: 600, marginBottom: 4, fontSize: 13 }}><span style={{ fontStyle: 'italic' }}>q</span> · вес уязвимости</div>
+              <div className="num" style={{ color: 'var(--fg-muted)' }}>0 … 1 — CVSS/БДУ</div>
+            </div>
+            <div style={{ padding: 10, background: 'var(--bg-elev-2)', borderRadius: 'var(--r-sm)', border: '1px solid var(--border)' }}>
+              <div style={{ color: 'var(--risk-info)', fontWeight: 600, marginBottom: 4, fontSize: 13 }}><span style={{ fontStyle: 'italic' }}>Q</span><sup style={{ fontSize: 9, position: 'relative', top: -6, marginLeft: 2 }}>re</sup> · реакция СЗИ</div>
+              <div className="num" style={{ color: 'var(--fg-muted)' }}>0 … 1 — доля закрытых VL</div>
+            </div>
+            <div style={{ padding: 10, background: 'var(--bg-elev-2)', borderRadius: 'var(--r-sm)', border: '1px solid var(--border)' }}>
+              <div style={{ color: 'var(--risk-medium)', fontWeight: 600, marginBottom: 4, fontSize: 13 }}><span style={{ fontStyle: 'italic' }}>Z</span> · контур</div>
+              <div className="num" style={{ color: 'var(--fg-muted)' }}>0.5 … 1 — prod/isolated</div>
+            </div>
           </div>
         </div>
       </Card>
