@@ -16,7 +16,7 @@ import { SoftwareCatalogPage } from "./pages/SoftwareCatalogPage";
 import { RiskPreviewPage } from "./pages/RiskPreviewPage";
 import { RiskMapPage } from "./pages/RiskMapPage";
 import { RiskGraphPage } from "./pages/RiskGraphPage";
-// DashboardPage will be added in Task 4 — for now, re-use AssetsPage as "/"
+import { DashboardPage } from "./pages/DashboardPage";
 
 type Theme = 'dark' | 'light';
 type Accent = 'indigo' | 'cyan' | 'emerald' | 'amber' | 'crimson';
@@ -116,7 +116,7 @@ function RoutedApp() {
       <Route path="/register" element={<RegisterPage />} />
 
       {/* Protected pages wrapped in PageShell */}
-      <Route path="/" element={<LayoutGuard><AssetsPage /></LayoutGuard>} />
+      <Route path="/" element={<LayoutGuard><DashboardPage /></LayoutGuard>} />
       <Route path="/assets" element={<LayoutGuard><AssetsPage /></LayoutGuard>} />
       <Route path="/assets/new" element={<LayoutGuard><AssetFormPage /></LayoutGuard>} />
       <Route path="/assets/edit/:id" element={<LayoutGuard><AssetFormPage /></LayoutGuard>} />
