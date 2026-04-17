@@ -89,7 +89,10 @@ func NewServer(_ context.Context, db *pgxpool.Pool, jwtSecret string) *fiber.App
 	assetVulnHandler := NewAssetVulnerabilityHandler(assetVulnSvc)
 
 	// Risk
-	riskSvc := riskService.NewService(assetRepo, threatRepo, vulnRepo, assetVulnRepo)
+	threatSourceRepo := repository.NewThreatSourceRepository(db)
+	destructiveActionRepo := repository.NewDestructiveActionRepository(db)
+	riskGraphRepo := repository.NewRiskGraphRepository(db)
+	riskSvc := riskService.NewService(assetRepo, threatRepo, vulnRepo, assetVulnRepo, threatSourceRepo, destructiveActionRepo, riskGraphRepo)
 	riskHandler := NewRiskHandler(riskSvc)
 
 	// ---------- Public routes (no auth) ----------
