@@ -1,25 +1,27 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { motion } from "framer-motion";
+import toast from "react-hot-toast";
+import { Shield, User, Lock, LogIn } from "lucide-react";
 import "./AuthPages.css";
 
 export const LoginPage: React.FC = () => {
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
-    const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
     const { login } = useAuth();
     const navigate = useNavigate();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError("");
         setLoading(true);
         try {
             await login(username, password);
+            toast.success("Вход выполнен успешно");
             navigate("/", { replace: true });
         } catch (err: any) {
-            setError(err.message || "Ошибка входа");
+            toast.error(err.message || "Ошибка входа");
         } finally {
             setLoading(false);
         }
@@ -27,83 +29,66 @@ export const LoginPage: React.FC = () => {
 
     return (
         <div className="auth-page">
-            <div className="auth-grid-bg" />
-            <div className="auth-scanlines" />
-            <div className="auth-glow auth-glow--top" />
-            <div className="auth-glow auth-glow--bottom" />
-
-            <div className="auth-card">
+            <motion.div 
+                className="auth-card card"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4 }}
+            >
                 <div className="auth-card__header">
                     <div className="auth-logo">
                         <div className="auth-logo__icon">
-                            <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
-                                <rect width="40" height="40" rx="8" fill="var(--raised)" stroke="var(--perimeter-emphasis)" strokeWidth="1" />
-                                <path d="M20 10L25 15H15L20 10Z M20 30L15 25H25L20 30Z M10 20L15 15V25L10 20Z M30 20L25 25V15L30 20Z" fill="var(--command)" opacity="0.6" />
-                            </svg>
+                            <Shield size={32} color="var(--command)" strokeWidth={2.5} />
                         </div>
                         <div className="auth-logo__text">
                             <span className="auth-logo__title">CYBERRISK</span>
-                            <span className="auth-logo__sub">THREAT MANAGEMENT SYSTEM</span>
+                            <span className="auth-logo__sub">ENTERPRISE SYSTEM</span>
                         </div>
                     </div>
                     <div className="auth-card__divider" />
-                    <h2 className="auth-card__title">Авторизация</h2>
-                    <p className="auth-card__desc">Введите учётные данные для входа в систему</p>
+                    <h2 className="auth-card__title">Вход в систему</h2>
+                    <p className="auth-card__desc">Введите корпоративные учётные данные</p>
                 </div>
-
-                {error && (
-                    <div className="auth-alert auth-alert--error">
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                            <path d="M8 1a7 7 0 100 14A7 7 0 008 1zm0 10.5a.75.75 0 110-1.5.75.75 0 010 1.5zM8.75 4.5v4a.75.75 0 01-1.5 0v-4a.75.75 0 011.5 0z"/>
-                        </svg>
-                        {error}
-                    </div>
-                )}
 
                 <form onSubmit={handleSubmit} className="auth-form">
                     <div className="auth-field">
-                        <label className="auth-label">
-                            <span className="auth-label__icon">&#x276F;</span>
-                            Пользователь
-                        </label>
-                        <input
-                            className="auth-input"
-                            type="text"
-                            value={username}
-                            onChange={(e) => setUsername(e.target.value)}
-                            placeholder="username"
-                            required
-                            autoFocus
-                            autoComplete="username"
-                        />
+                        <label className="form-label">Пользователь</label>
+                        <div className="input-with-icon">
+                            <User size={18} className="input-icon" />
+                            <input
+                                className="form-input"
+                                type="text"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
+                                placeholder="username"
+                                required
+                                autoFocus
+                                autoComplete="username"
+                            />
+                        </div>
                     </div>
                     <div className="auth-field">
-                        <label className="auth-label">
-                            <span className="auth-label__icon">&#x276F;</span>
-                            Пароль
-                        </label>
-                        <input
-                            className="auth-input"
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;"
-                            required
-                            autoComplete="current-password"
-                        />
+                        <label className="form-label">Пароль</label>
+                        <div className="input-with-icon">
+                            <Lock size={18} className="input-icon" />
+                            <input
+                                className="form-input"
+                                type="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                placeholder="••••••••"
+                                required
+                                autoComplete="current-password"
+                            />
+                        </div>
                     </div>
-                    <button className="auth-btn" type="submit" disabled={loading}>
+                    <button className="btn btn-primary" type="submit" disabled={loading} style={{ width: '100%', marginTop: '10px' }}>
                         {loading ? (
-                            <span className="auth-btn__loading">
-                                <span className="auth-spinner" />
-                                Вход...
-                            </span>
+                            <span className="loading-spinner" style={{ width: 18, height: 18 }} />
                         ) : (
                             <>
-                                <span>Войти в систему</span>
-                                <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
-                                    <path d="M3 9h10M10 5l4 4-4 4" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round"/>
-                                </svg>
+                                <LogIn size={18} />
+                                Войти
                             </>
                         )}
                     </button>
@@ -113,13 +98,7 @@ export const LoginPage: React.FC = () => {
                     <span className="auth-footer__text">Нет аккаунта?</span>
                     <Link to="/register" className="auth-footer__link">Зарегистрироваться</Link>
                 </div>
-
-                <div className="auth-card__status">
-                    <span className="auth-status-dot" />
-                    <span>Система активна</span>
-                    <span className="auth-status-ver">v1.0.0</span>
-                </div>
-            </div>
+            </motion.div>
         </div>
     );
 };
