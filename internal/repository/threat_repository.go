@@ -70,6 +70,8 @@ SELECT
     source_type,
     description,
     base_likelihood,
+    q_threat,
+    q_severity,
     created_at,
     updated_at
 FROM threats
@@ -83,6 +85,8 @@ WHERE id = $1
 		&t.SourceType,
 		&t.Description,
 		&t.BaseLikelihood,
+		&t.QThreat,
+		&t.QSeverity,
 		&t.CreatedAt,
 		&t.UpdatedAt,
 	)
@@ -112,6 +116,8 @@ SELECT
     source_type,
     description,
     base_likelihood,
+    q_threat,
+    q_severity,
     created_at,
     updated_at
 FROM threats
@@ -134,6 +140,8 @@ LIMIT $1 OFFSET $2
 			&t.SourceType,
 			&t.Description,
 			&t.BaseLikelihood,
+			&t.QThreat,
+			&t.QSeverity,
 			&t.CreatedAt,
 			&t.UpdatedAt,
 		); err != nil {
