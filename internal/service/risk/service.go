@@ -4,6 +4,7 @@ package risk
 import (
 	"context"
 	"fmt"
+	"math"
 
 	"Diplom/internal/domain"
 	"Diplom/internal/repository"
@@ -31,10 +32,18 @@ type OverviewPoint struct {
 	ThreatID   int64  `json:"threat_id"`
 	ThreatName string `json:"threat_name"`
 
+	// Legacy back-compat display (derived from W below)
 	Impact     int16  `json:"impact"`
 	Likelihood int16  `json:"likelihood"`
 	Score      int16  `json:"score"`
 	Level      string `json:"level"`
+
+	// PTSZI model — W in [0,1] plus its components
+	W         float64 `json:"w"`
+	QThreat   float64 `json:"q_threat"`
+	QSeverity float64 `json:"q_severity"`
+	QReaction float64 `json:"q_reaction"`
+	Z         float64 `json:"z"`
 }
 
 // AssetRisk — риск для актива от конкретной угрозы с рекомендациями.
@@ -130,32 +139,32 @@ func (s *service) Overview(ctx context.Context) ([]OverviewPoint, error) {
 		return nil, fmt.Errorf("list threats: %w", err)
 	}
 
-	// заранее кешируем уязвимости по активам, чтобы не дергать БД в цикле NxM
-	vulnsByAsset := make(map[int64][]domain.Vulnerability, len(assets))
-	for _, a := range assets {
-		vv, err := s.vulnsForAsset(ctx, a.ID)
-		if err != nil {
-			return nil, err
-		}
-		vulnsByAsset[a.ID] = vv
-	}
-
-	var result []OverviewPoint
+	result := make([]OverviewPoint, 0, len(assets)*len(threats))
 
 	for _, a := range assets {
 		for _, t := range threats {
-			vulns := vulnsByAsset[a.ID]
-			r := s.calculator.Calculate(&a, &t, vulns)
-
+			path, err := s.AssembleAttackPath(ctx, a.ID, t.ID)
+			if err != nil {
+				// Если один путь не собрался — не валим весь overview, пропускаем пару.
+				continue
+			}
 			result = append(result, OverviewPoint{
 				AssetID:    a.ID,
 				AssetName:  a.Name,
 				ThreatID:   t.ID,
 				ThreatName: t.Name,
-				Impact:     r.Impact,
-				Likelihood: r.Likelihood,
-				Score:      r.Score,
-				Level:      r.Level,
+
+				// Back-compat display: W scaled to legacy 1..25 / 1..5 ranges
+				Impact:     int16(math.Round(path.QSeverity * 5)),
+				Likelihood: int16(math.Round(path.QThreat * 5)),
+				Score:      int16(math.Round(path.W * 25)),
+				Level:      path.Level,
+
+				W:         path.W,
+				QThreat:   path.QThreat,
+				QSeverity: path.QSeverity,
+				QReaction: path.QReaction,
+				Z:         path.Z,
 			})
 		}
 	}
