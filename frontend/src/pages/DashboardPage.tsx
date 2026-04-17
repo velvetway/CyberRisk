@@ -69,16 +69,9 @@ export const DashboardPage: React.FC = () => {
   const spark3 = [4, 3, 2, 4, 5, 3, 2, 1, 2, 1, 0, 1, 2, 1, 0];
   const spark4 = [60, 58, 62, 61, 65, 67, 66, 70, 69, 72, 74, 73, 76, 78, 81];
 
-  const openCveCount = assets.reduce((s, _a) => s + 0, 0); // TODO: compute from vulns endpoint later
-
-  // Static fake feed (replace with real events endpoint when it exists)
-  const feed = [
-    { id: 'F-2041', at: '15:42', sev: 'critical' as Level, source: 'Honeynet', text: 'Сработала сигнатура БДУ.006 на портале', asset: 'A-003' },
-    { id: 'F-2040', at: '15:31', sev: 'high' as Level, source: 'MaxPatrol', text: 'Аномальный брутфорс учётных данных AD-01 (~140 попыток/мин)', asset: 'A-006' },
-    { id: 'F-2039', at: '15:18', sev: 'medium' as Level, source: 'NetFlow', text: 'Повышенный исходящий трафик DNS-канала', asset: 'A-010' },
-    { id: 'F-2038', at: '14:55', sev: 'high' as Level, source: 'CVE-фид', text: 'Опубликован CVE-2026-0188 (CVSS 9.6)', asset: 'A-001' },
-    { id: 'F-2037', at: '14:32', sev: 'low' as Level, source: 'Сканер', text: 'Завершено сканирование сегмента DMZ — 0 новых уязвимостей', asset: null },
-  ];
+  // Count of assets that have at least one risk point
+  const assetsAtRisk = new Set(points.map(p => p.asset_id)).size;
+  const kiiCount = assets.filter(a => a.kii_category && a.kii_category !== 'none').length;
 
   return (
     <motion.div
@@ -114,16 +107,16 @@ export const DashboardPage: React.FC = () => {
         <StatCard label="Критических рисков" value={counts.critical} tone="critical" mono
           sub={`${counts.critical} требуют реакции в 24ч`}
           sparkline={<Sparkline data={spark2} color="var(--risk-critical)" />} />
-        <StatCard label="Открытых CVE" value={openCveCount} tone="medium" mono
-          sub="Источник: фид CVE/БДУ"
+        <StatCard label="Активов с риском" value={assetsAtRisk} tone="medium" mono
+          sub={`Из ${assets.length} зарегистрированных`}
           sparkline={<Sparkline data={spark4} color="var(--risk-medium)" />} />
-        <StatCard label="Инциденты /сут" value={feed.filter(f => f.sev === 'critical' || f.sev === 'high').length} tone="low" mono
-          sub="MTTR 47 мин · в пределах SLA"
+        <StatCard label="Объектов КИИ" value={kiiCount} tone="low" mono
+          sub="Подпадают под 187-ФЗ"
           sparkline={<Sparkline data={spark3} color="var(--risk-low)" />} />
       </div>
 
-      {/* Main grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
+      {/* Main section */}
+      <div>
         {/* Risk breakdown */}
         <Card title="Распределение рисков по уровням" subtitle="Методология ФСТЭК · свод всех пар «актив × угроза»" dense
           action={<Chip tone="ghost" onClick={() => navigate('/risk/map')}>Открыть матрицу →</Chip>}>
@@ -197,30 +190,6 @@ export const DashboardPage: React.FC = () => {
           </div>
         </Card>
 
-        {/* Threat feed */}
-        <Card title="Лента событий" subtitle="Realtime · SIEM / honeynet" dense
-          action={<Chip tone="accent" icon={<span style={{ width: 5, height: 5, borderRadius: 999, background: 'currentColor' }} />}>LIVE</Chip>}
-          pad={0}>
-          <div style={{ maxHeight: 440, overflow: 'auto' }}>
-            {feed.map((f, i) => (
-              <div key={f.id} style={{
-                display: 'flex', gap: 10, padding: '10px 14px',
-                borderBottom: i < feed.length - 1 ? '1px solid var(--border)' : 'none',
-                alignItems: 'flex-start'
-              }}>
-                <div style={{ marginTop: 3, width: 6, height: 6, borderRadius: 999, background: `var(--risk-${f.sev})`, flexShrink: 0, boxShadow: `0 0 6px var(--risk-${f.sev})` }} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 3 }}>
-                    <span className="mono" style={{ fontSize: 10, color: 'var(--fg-faint)' }}>{f.at}</span>
-                    <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--fg-dim)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{f.source}</span>
-                    {f.asset && <Chip tone="ghost" mono>{f.asset}</Chip>}
-                  </div>
-                  <div style={{ fontSize: 'var(--text-sm)', lineHeight: 1.4 }}>{f.text}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
       </div>
 
       {/* PTSZI formula callout */}
@@ -229,20 +198,20 @@ export const DashboardPage: React.FC = () => {
           <PtsziFormula size="xl" align="center" />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, fontSize: 'var(--text-xs)' }}>
             <div style={{ padding: 10, background: 'var(--bg-elev-2)', borderRadius: 'var(--r-sm)', border: '1px solid var(--border)' }}>
-              <div style={{ color: 'var(--risk-critical)', fontWeight: 600, marginBottom: 4, fontSize: 13 }}><span style={{ fontStyle: 'italic' }}>Q</span><sup style={{ fontSize: 9, position: 'relative', top: -6, marginLeft: 2 }}>th</sup> · потенциал угрозы</div>
-              <div className="num" style={{ color: 'var(--fg-muted)' }}>0 … 1 — из БДУ ФСТЭК</div>
+              <div style={{ color: 'var(--risk-critical)', fontWeight: 600, marginBottom: 4, fontSize: 13 }}><span style={{ fontStyle: 'italic' }}>Q</span><sup style={{ fontSize: 9, position: 'relative', top: -6, marginLeft: 2 }}>threat</sup></div>
+              <div className="num" style={{ color: 'var(--fg-muted)' }}>степень реализации угрозы, 0…1</div>
             </div>
             <div style={{ padding: 10, background: 'var(--bg-elev-2)', borderRadius: 'var(--r-sm)', border: '1px solid var(--border)' }}>
-              <div style={{ color: 'var(--risk-high)', fontWeight: 600, marginBottom: 4, fontSize: 13 }}><span style={{ fontStyle: 'italic' }}>q</span> · вес уязвимости</div>
-              <div className="num" style={{ color: 'var(--fg-muted)' }}>0 … 1 — CVSS/БДУ</div>
+              <div style={{ color: 'var(--risk-high)', fontWeight: 600, marginBottom: 4, fontSize: 13 }}><span style={{ fontStyle: 'italic' }}>q</span><sup style={{ fontSize: 9, position: 'relative', top: -6, marginLeft: 2 }}>threat</sup></div>
+              <div className="num" style={{ color: 'var(--fg-muted)' }}>степень опасности угрозы, 0…1</div>
             </div>
             <div style={{ padding: 10, background: 'var(--bg-elev-2)', borderRadius: 'var(--r-sm)', border: '1px solid var(--border)' }}>
-              <div style={{ color: 'var(--risk-info)', fontWeight: 600, marginBottom: 4, fontSize: 13 }}><span style={{ fontStyle: 'italic' }}>Q</span><sup style={{ fontSize: 9, position: 'relative', top: -6, marginLeft: 2 }}>re</sup> · реакция СЗИ</div>
-              <div className="num" style={{ color: 'var(--fg-muted)' }}>0 … 1 — доля закрытых VL</div>
+              <div style={{ color: 'var(--risk-info)', fontWeight: 600, marginBottom: 4, fontSize: 13 }}><span style={{ fontStyle: 'italic' }}>Q</span><sup style={{ fontSize: 9, position: 'relative', top: -6, marginLeft: 2 }}>reaction</sup></div>
+              <div className="num" style={{ color: 'var(--fg-muted)' }}>степень предотвращения угрозы, 0…1</div>
             </div>
             <div style={{ padding: 10, background: 'var(--bg-elev-2)', borderRadius: 'var(--r-sm)', border: '1px solid var(--border)' }}>
-              <div style={{ color: 'var(--risk-medium)', fontWeight: 600, marginBottom: 4, fontSize: 13 }}><span style={{ fontStyle: 'italic' }}>Z</span> · контур</div>
-              <div className="num" style={{ color: 'var(--fg-muted)' }}>0.5 … 1 — prod/isolated</div>
+              <div style={{ color: 'var(--risk-medium)', fontWeight: 600, marginBottom: 4, fontSize: 13 }}><span style={{ fontStyle: 'italic' }}>Z</span></div>
+              <div className="num" style={{ color: 'var(--fg-muted)' }}>критичность для контура, 0.5 или 1</div>
             </div>
           </div>
         </div>
