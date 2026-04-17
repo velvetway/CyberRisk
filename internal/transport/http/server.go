@@ -89,7 +89,10 @@ func NewServer(_ context.Context, db *pgxpool.Pool, jwtSecret string) *fiber.App
 	assetVulnHandler := NewAssetVulnerabilityHandler(assetVulnSvc)
 
 	// Risk
-	riskSvc := riskService.NewService(assetRepo, threatRepo, vulnRepo, assetVulnRepo)
+	threatSourceRepo := repository.NewThreatSourceRepository(db)
+	destructiveActionRepo := repository.NewDestructiveActionRepository(db)
+	riskGraphRepo := repository.NewRiskGraphRepository(db)
+	riskSvc := riskService.NewService(assetRepo, threatRepo, vulnRepo, assetVulnRepo, threatSourceRepo, destructiveActionRepo, riskGraphRepo)
 	riskHandler := NewRiskHandler(riskSvc)
 
 	// ---------- Public routes (no auth) ----------
@@ -142,6 +145,9 @@ func NewServer(_ context.Context, db *pgxpool.Pool, jwtSecret string) *fiber.App
 	// Risk
 	readOnly.Get("/risk/overview", riskHandler.overview)
 	readOnly.Get("/risk/asset/:id", riskHandler.assetRiskProfile)
+	readOnly.Get("/risk/graph/:asset_id/:threat_id", riskHandler.riskGraph)
+	readOnly.Get("/threat-sources", riskHandler.listThreatSources)
+	readOnly.Get("/destructive-actions", riskHandler.listDestructiveActions)
 	write.Post("/risk/preview", riskHandler.previewRisk)
 	write.Post("/risk/report/pdf", riskHandler.GenerateRiskPDF)
 

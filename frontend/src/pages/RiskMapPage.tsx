@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import * as d3 from "d3";
 import { api } from "../api/client";
 import { RiskOverviewPoint } from "../types";
@@ -11,6 +12,7 @@ export const RiskMapPage: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [hover, setHover] = useState<RiskOverviewPoint | null>(null);
+    const navigate = useNavigate();
 
     useEffect(() => {
         api.getRiskOverview()
@@ -124,6 +126,7 @@ export const RiskMapPage: React.FC = () => {
                                                 fill={color} fillOpacity={hover === p ? 1 : 0.8}
                                                 stroke="white" strokeWidth={hover === p ? 2 : 1}
                                                 onMouseEnter={() => setHover(p)} onMouseLeave={() => setHover(null)}
+                                                onClick={() => navigate(`/risk/graph/${p.asset_id}?threat=${p.threat_id}`)}
                                                 style={{ cursor: "pointer", transition: "all 0.2s" }}
                                             />
                                         );

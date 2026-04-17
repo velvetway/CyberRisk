@@ -130,6 +130,8 @@ go run cmd/server/main.go
 
 ## Расчёт рисков и рекомендации
 
+> **Формальная модель риска (ПТСЗИ)**: см. [docs/risk-model.md](docs/risk-model.md) — граф `S → ST → VL → DA` и формула `W_i`, которая заменила старую схему `Impact × Likelihood`.
+
 Формулы сконцентрированы в `internal/service/risk/calculator.go`:
 
 - `Impact = f(BusinessCriticality, Confidentiality, Integrity, Availability)` + поправки за наличие угрозы, влияющей на соответствующие CIA‑метрики, и максимальную серьёзность уязвимости, привязанной к активу.

@@ -5,6 +5,7 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AssetsPage } from "./pages/AssetsPage";
 import { RiskPreviewPage } from "./pages/RiskPreviewPage";
 import { RiskMapPage } from "./pages/RiskMapPage";
+import { RiskGraphPage } from "./pages/RiskGraphPage";
 import { AssetFormPage } from "./pages/AssetFormPage";
 import { AssetRiskProfilePage } from "./pages/AssetRiskProfilePage";
 import { SoftwareCatalogPage } from "./pages/SoftwareCatalogPage";
@@ -108,6 +109,7 @@ const AppLayout: React.FC = () => {
                         <Route path="/software" element={<ProtectedRoute><SoftwareCatalogPage /></ProtectedRoute>} />
                         <Route path="/risk/preview" element={<ProtectedRoute><RiskPreviewPage /></ProtectedRoute>} />
                         <Route path="/risk/map" element={<ProtectedRoute><RiskMapPage /></ProtectedRoute>} />
+                        <Route path="/risk/graph/:assetId" element={<ProtectedRoute><RiskGraphPage /></ProtectedRoute>} />
                         <Route path="*" element={<ProtectedRoute><AssetsPage /></ProtectedRoute>} />
                     </Routes>
                 </main>

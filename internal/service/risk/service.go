@@ -4,6 +4,7 @@ package risk
 import (
 	"context"
 	"fmt"
+	"math"
 
 	"Diplom/internal/domain"
 	"Diplom/internal/repository"
@@ -17,6 +18,11 @@ type Service interface {
 	Overview(ctx context.Context) ([]OverviewPoint, error)
 	// Автоматический расчёт всех рисков для конкретного актива.
 	AssetRiskProfile(ctx context.Context, assetID int64) ([]AssetRisk, error)
+	// Новый PTSZI граф атаки для пары актив+угроза с формулой W_i.
+	AssembleAttackPath(ctx context.Context, assetID, threatID int64) (*domain.AttackPath, error)
+	// Справочники для PTSZI-графа
+	ListThreatSources(ctx context.Context) ([]domain.ThreatSource, error)
+	ListDestructiveActions(ctx context.Context) ([]domain.DestructiveAction, error)
 }
 
 // OverviewPoint — точка на глобальной карте рисков.
@@ -26,10 +32,18 @@ type OverviewPoint struct {
 	ThreatID   int64  `json:"threat_id"`
 	ThreatName string `json:"threat_name"`
 
+	// Legacy back-compat display (derived from W below)
 	Impact     int16  `json:"impact"`
 	Likelihood int16  `json:"likelihood"`
 	Score      int16  `json:"score"`
 	Level      string `json:"level"`
+
+	// PTSZI model — W in [0,1] plus its components
+	W         float64 `json:"w"`
+	QThreat   float64 `json:"q_threat"`
+	QSeverity float64 `json:"q_severity"`
+	QReaction float64 `json:"q_reaction"`
+	Z         float64 `json:"z"`
 }
 
 // AssetRisk — риск для актива от конкретной угрозы с рекомендациями.
@@ -51,6 +65,9 @@ type service struct {
 	threatsRepo    repository.ThreatRepository
 	vulnsRepo      repository.VulnerabilityRepository
 	assetVulnsRepo repository.AssetVulnerabilityRepository
+	sourceRepo     repository.ThreatSourceRepository
+	daRepo         repository.DestructiveActionRepository
+	graphRepo      repository.RiskGraphRepository
 
 	calculator *Calculator // тип и логика определены в calculator.go
 }
@@ -61,12 +78,18 @@ func NewService(
 	threats repository.ThreatRepository,
 	vulns repository.VulnerabilityRepository,
 	assetVulns repository.AssetVulnerabilityRepository,
+	sources repository.ThreatSourceRepository,
+	das repository.DestructiveActionRepository,
+	graph repository.RiskGraphRepository,
 ) Service {
 	return &service{
 		assetsRepo:     assets,
 		threatsRepo:    threats,
 		vulnsRepo:      vulns,
 		assetVulnsRepo: assetVulns,
+		sourceRepo:     sources,
+		daRepo:         das,
+		graphRepo:      graph,
 		calculator:     NewCalculator(),
 	}
 }
@@ -116,32 +139,32 @@ func (s *service) Overview(ctx context.Context) ([]OverviewPoint, error) {
 		return nil, fmt.Errorf("list threats: %w", err)
 	}
 
-	// заранее кешируем уязвимости по активам, чтобы не дергать БД в цикле NxM
-	vulnsByAsset := make(map[int64][]domain.Vulnerability, len(assets))
-	for _, a := range assets {
-		vv, err := s.vulnsForAsset(ctx, a.ID)
-		if err != nil {
-			return nil, err
-		}
-		vulnsByAsset[a.ID] = vv
-	}
-
-	var result []OverviewPoint
+	result := make([]OverviewPoint, 0, len(assets)*len(threats))
 
 	for _, a := range assets {
 		for _, t := range threats {
-			vulns := vulnsByAsset[a.ID]
-			r := s.calculator.Calculate(&a, &t, vulns)
-
+			path, err := s.AssembleAttackPath(ctx, a.ID, t.ID)
+			if err != nil {
+				// Если один путь не собрался — не валим весь overview, пропускаем пару.
+				continue
+			}
 			result = append(result, OverviewPoint{
 				AssetID:    a.ID,
 				AssetName:  a.Name,
 				ThreatID:   t.ID,
 				ThreatName: t.Name,
-				Impact:     r.Impact,
-				Likelihood: r.Likelihood,
-				Score:      r.Score,
-				Level:      r.Level,
+
+				// Back-compat display: W scaled to legacy 1..25 / 1..5 ranges
+				Impact:     int16(math.Round(path.QSeverity * 5)),
+				Likelihood: int16(math.Round(path.QThreat * 5)),
+				Score:      int16(math.Round(path.W * 25)),
+				Level:      path.Level,
+
+				W:         path.W,
+				QThreat:   path.QThreat,
+				QSeverity: path.QSeverity,
+				QReaction: path.QReaction,
+				Z:         path.Z,
 			})
 		}
 	}
@@ -202,6 +225,76 @@ func (s *service) AssetRiskProfile(ctx context.Context, assetID int64) ([]AssetR
 	}
 
 	return results, nil
+}
+
+// AssembleAttackPath — строит полную цепочку S → ST → VL → DA для пары
+// (актив, угроза) и считает W_i по формуле ПТСЗИ.
+func (s *service) AssembleAttackPath(ctx context.Context, assetID, threatID int64) (*domain.AttackPath, error) {
+	if assetID <= 0 || threatID <= 0 {
+		return nil, fmt.Errorf("assetID and threatID must be positive")
+	}
+
+	asset, err := s.assetsRepo.GetByID(ctx, assetID)
+	if err != nil {
+		return nil, fmt.Errorf("get asset: %w", err)
+	}
+	if asset == nil {
+		return nil, fmt.Errorf("asset not found")
+	}
+
+	threat, err := s.threatsRepo.GetByID(ctx, threatID)
+	if err != nil {
+		return nil, fmt.Errorf("get threat: %w", err)
+	}
+	if threat == nil {
+		return nil, fmt.Errorf("threat not found")
+	}
+
+	sources, err := s.sourceRepo.ForThreat(ctx, threatID)
+	if err != nil {
+		return nil, fmt.Errorf("load sources: %w", err)
+	}
+	das, err := s.daRepo.ForThreat(ctx, threatID)
+	if err != nil {
+		return nil, fmt.Errorf("load destructive actions: %w", err)
+	}
+	vls, err := s.graphRepo.LoadVulnerableLinks(ctx, assetID, threatID)
+	if err != nil {
+		return nil, fmt.Errorf("load vulnerable links: %w", err)
+	}
+
+	qR := QReactionFromVLs(vls)
+	z := ZFromAsset(*asset)
+	w := CalculateW(threat.QThreat, threat.QSeverity, qR, z)
+
+	bduID := ""
+	if threat.BDUID != nil {
+		bduID = *threat.BDUID
+	}
+
+	return &domain.AttackPath{
+		Asset:              domain.AssetRef{ID: asset.ID, Name: asset.Name},
+		Threat:             domain.ThreatRef{ID: threat.ID, Name: threat.Name, BDUID: bduID},
+		Sources:            sources,
+		VulnerableLinks:    vls,
+		DestructiveActions: das,
+		QThreat:            threat.QThreat,
+		QSeverity:          threat.QSeverity,
+		QReaction:          qR,
+		Z:                  z,
+		W:                  w,
+		Level:              LevelFromW(w),
+	}, nil
+}
+
+// ListThreatSources — справочник всех источников угроз (S1..Sn).
+func (s *service) ListThreatSources(ctx context.Context) ([]domain.ThreatSource, error) {
+	return s.sourceRepo.List(ctx)
+}
+
+// ListDestructiveActions — справочник всех деструктивных действий (DA1..DAn).
+func (s *service) ListDestructiveActions(ctx context.Context) ([]domain.DestructiveAction, error) {
+	return s.daRepo.List(ctx)
 }
 
 // vulnsForAsset — вспомогательный метод: уязвимости, привязанные к активу.
