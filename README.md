@@ -29,7 +29,7 @@
 └─ frontend/              — SPA на React 19 + TypeScript
 ```
 
-- **Backend**: Go 1.22, HTTP‑сервер на Fiber v2, подключение к PostgreSQL через `pgxpool`. Основной исполняемый файл `cmd/server/main.go` создаёт контекст с graceful shutdown, загружает конфиг (`DB_DSN`, `HTTP_PORT`), инициализирует репозитории/сервисы и регистрирует HTTP‑роуты.
+- **Backend**: Go 1.25, HTTP‑сервер на Fiber v2, подключение к PostgreSQL через `pgxpool`. Основной исполняемый файл `cmd/server/main.go` создаёт контекст с graceful shutdown, загружает конфиг (`DB_DSN`, `HTTP_PORT`), инициализирует репозитории/сервисы и регистрирует HTTP‑роуты.
 - **Слой конфигурации**: `internal/config/config.go` устанавливает значения по умолчанию (`postgres://app:app@localhost:5432/cyber_risk?sslmode=disable`, порт `8081`), что облегчает запуск в dev.
 - **Сервисы**:
   - `service/asset`, `service/threat`, `service/vulnerability`, `service/asset_vulnerability` реализуют CRUD‑операции и валидацию вводимых данных.
