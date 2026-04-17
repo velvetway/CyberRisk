@@ -1,51 +1,69 @@
 import React from 'react';
 
-// PTSZI formula component — W = (Q^th + q + (1 - Q^re)) / 3 · Z
-// Typography-first: large readable variables, sup rendered at 0.7em with high vertical align.
+// PTSZI formula component with proper typographic fraction layout:
+// W = ( Q^threat + q^threat + (1 − Q^reaction) )  /  3  ·  Z
+// Rendered as a real stacked fraction (numerator / line / denominator).
 
-interface VarSpanProps {
+interface VarProps {
   color: string;
   children: React.ReactNode;
   sup?: string;
   bold?: boolean;
+  baseSize: number;
 }
 
-const V: React.FC<VarSpanProps> = ({ color, children, sup, bold }) => (
-  <span style={{
-    color,
-    fontWeight: bold ? 700 : 500,
-    letterSpacing: '0.01em',
-    fontStyle: 'italic',
-    fontFamily: "'Inter', 'Inter Display', -apple-system, sans-serif",
-  }}>
-    {children}
+const Var: React.FC<VarProps> = ({ color, children, sup, bold, baseSize }) => (
+  <span style={{ display: 'inline-flex', alignItems: 'baseline' }}>
+    <span style={{
+      color,
+      fontStyle: 'italic',
+      fontWeight: bold ? 700 : 600,
+      fontSize: baseSize,
+      letterSpacing: '-0.01em',
+      fontFamily: "'Inter', 'Inter Display', -apple-system, sans-serif",
+      lineHeight: 1,
+    }}>
+      {children}
+    </span>
     {sup && (
-      <sup style={{
-        fontSize: '0.62em',
-        verticalAlign: 'baseline',
-        position: 'relative',
-        top: '-0.45em',
-        marginLeft: 1,
-        fontStyle: 'normal',
+      <span style={{
+        fontSize: Math.max(10, Math.round(baseSize * 0.42)),
+        color,
+        opacity: 0.85,
         fontWeight: 500,
         letterSpacing: '0.02em',
-      }}>{sup}</sup>
+        alignSelf: 'flex-start',
+        marginTop: `-${Math.round(baseSize * 0.22)}px`,
+        marginLeft: 1,
+        lineHeight: 1,
+      }}>
+        {sup}
+      </span>
     )}
   </span>
 );
 
-const Op: React.FC<{ children: React.ReactNode; muted?: boolean }> = ({ children, muted }) => (
+const Op: React.FC<{ children: React.ReactNode; size: number; muted?: boolean; gap?: number }> = ({ children, size, muted, gap = 0.35 }) => (
   <span style={{
     color: muted ? 'var(--fg-dim)' : 'var(--fg-muted)',
-    margin: '0 0.45em',
+    fontSize: size,
+    margin: `0 ${gap}em`,
     fontWeight: 400,
+    lineHeight: 1,
   }}>
     {children}
   </span>
 );
 
-const Num: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <span style={{ color: 'var(--fg)', fontFamily: 'var(--font-mono)', fontSize: '0.92em' }}>
+const Numeric: React.FC<{ children: React.ReactNode; size: number; bold?: boolean }> = ({ children, size, bold }) => (
+  <span style={{
+    color: 'var(--fg)',
+    fontFamily: 'var(--font-mono)',
+    fontSize: Math.round(size * 0.9),
+    fontWeight: bold ? 600 : 500,
+    fontVariantNumeric: 'tabular-nums',
+    lineHeight: 1,
+  }}>
     {children}
   </span>
 );
@@ -58,71 +76,75 @@ export interface PtsziFormulaProps {
 
 export const PtsziFormula: React.FC<PtsziFormulaProps> = ({
   size = 'lg',
-  align = 'left',
+  align = 'center',
   withBackground = true,
 }) => {
-  const fs = size === 'xl' ? 28 : size === 'lg' ? 22 : 17;
+  const baseSize = size === 'xl' ? 32 : size === 'lg' ? 24 : 19;
+  const fractionLineThickness = Math.max(1.5, baseSize * 0.06);
+
   return (
     <div style={{
-      padding: withBackground ? '18px 24px' : 0,
+      padding: withBackground ? '24px 32px' : 0,
       background: withBackground ? 'var(--bg-elev-2)' : 'transparent',
       border: withBackground ? '1px solid var(--border)' : 'none',
       borderRadius: 'var(--r-md)',
-      fontSize: fs,
-      lineHeight: 1.2,
-      textAlign: align,
-      letterSpacing: '-0.005em',
       color: 'var(--fg)',
-      whiteSpace: 'nowrap',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: align === 'center' ? 'center' : 'flex-start',
       overflowX: 'auto',
+      lineHeight: 1,
+      minHeight: baseSize * 3.2,
     }}>
-      <V color="var(--accent)" bold>W</V>
-      <Op>=</Op>
-      <Op muted>(</Op>
-      <V color="var(--risk-critical)" sup="th">Q</V>
-      <Op>+</Op>
-      <V color="var(--risk-high)">q</V>
-      <Op>+</Op>
-      <Op muted>(</Op>
-      <Num>1</Num>
-      <Op>−</Op>
-      <V color="var(--risk-info)" sup="re">Q</V>
-      <Op muted>)</Op>
-      <Op muted>)</Op>
-      <Op>/</Op>
-      <Num>3</Num>
-      <Op>·</Op>
-      <V color="var(--risk-medium)" bold>Z</V>
+      {/* W */}
+      <Var color="var(--accent)" bold baseSize={Math.round(baseSize * 1.15)}>W</Var>
+
+      {/* = */}
+      <Op size={baseSize} gap={0.55}>=</Op>
+
+      {/* Fraction */}
+      <span style={{
+        display: 'inline-flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        margin: `0 ${baseSize * 0.02}em`,
+      }}>
+        {/* Numerator */}
+        <span style={{
+          display: 'inline-flex',
+          alignItems: 'baseline',
+          whiteSpace: 'nowrap',
+          padding: `0 ${baseSize * 0.02}em ${Math.round(baseSize * 0.3)}px`,
+        }}>
+          <Var color="var(--risk-critical)" sup="threat" baseSize={baseSize}>Q</Var>
+          <Op size={baseSize}>+</Op>
+          <Var color="var(--risk-high)" sup="threat" baseSize={baseSize}>q</Var>
+          <Op size={baseSize}>+</Op>
+          <Op size={baseSize} muted gap={0.12}>(</Op>
+          <Numeric size={baseSize}>1</Numeric>
+          <Op size={baseSize}>−</Op>
+          <Var color="var(--risk-info)" sup="reaction" baseSize={baseSize}>Q</Var>
+          <Op size={baseSize} muted gap={0.12}>)</Op>
+        </span>
+
+        {/* Fraction line */}
+        <span style={{
+          width: '100%',
+          height: fractionLineThickness,
+          background: 'var(--fg-muted)',
+          opacity: 0.75,
+          borderRadius: fractionLineThickness,
+        }} />
+
+        {/* Denominator */}
+        <span style={{ padding: `${Math.round(baseSize * 0.3)}px 0 0` }}>
+          <Numeric size={baseSize} bold>3</Numeric>
+        </span>
+      </span>
+
+      {/* · Z */}
+      <Op size={baseSize} gap={0.4}>·</Op>
+      <Var color="var(--risk-medium)" bold baseSize={Math.round(baseSize * 1.15)}>Z</Var>
     </div>
   );
 };
-
-// Compact inline version for use inside cards where background is controlled by parent
-export const PtsziFormulaInline: React.FC<{ size?: number }> = ({ size = 17 }) => (
-  <div style={{
-    fontSize: size,
-    lineHeight: 1.2,
-    color: 'var(--fg)',
-    display: 'inline-flex',
-    alignItems: 'center',
-    whiteSpace: 'nowrap',
-  }}>
-    <V color="var(--accent)" bold>W</V>
-    <Op>=</Op>
-    <Op muted>(</Op>
-    <V color="var(--risk-critical)" sup="th">Q</V>
-    <Op>+</Op>
-    <V color="var(--risk-high)">q</V>
-    <Op>+</Op>
-    <Op muted>(</Op>
-    <Num>1</Num>
-    <Op>−</Op>
-    <V color="var(--risk-info)" sup="re">Q</V>
-    <Op muted>)</Op>
-    <Op muted>)</Op>
-    <Op>/</Op>
-    <Num>3</Num>
-    <Op>·</Op>
-    <V color="var(--risk-medium)" bold>Z</V>
-  </div>
-);
