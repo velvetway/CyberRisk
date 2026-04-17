@@ -1,0 +1,191 @@
+/* CyberRisk — Design Tokens
+ * Система цветов, типографики и пространства.
+ * OKLCH для предсказуемости во всех hue-вращениях.
+ */
+
+:root {
+  /* ============ BASE / NEUTRALS ============ */
+  /* Нейтральная slate-шкала, едва холодная (hue 250) */
+  --n-0:  oklch(1     0      0);
+  --n-50: oklch(0.985 0.003  250);
+  --n-100:oklch(0.965 0.005  250);
+  --n-150:oklch(0.945 0.006  250);
+  --n-200:oklch(0.915 0.008  250);
+  --n-300:oklch(0.855 0.010  250);
+  --n-400:oklch(0.72  0.012  250);
+  --n-500:oklch(0.58  0.014  250);
+  --n-600:oklch(0.46  0.015  250);
+  --n-700:oklch(0.35  0.016  250);
+  --n-800:oklch(0.24  0.014  250);
+  --n-850:oklch(0.19  0.012  250);
+  --n-900:oklch(0.155 0.010  250);
+  --n-950:oklch(0.115 0.008  250);
+  --n-1000:oklch(0.08 0.006  250);
+
+  /* ============ ACCENT (primary) ============ */
+  /* По умолчанию — indigo; меняется через data-accent */
+  --accent-h: 265;
+  --accent-c: 0.17;
+  --accent: oklch(0.62 var(--accent-c) var(--accent-h));
+  --accent-hover: oklch(0.68 var(--accent-c) var(--accent-h));
+  --accent-dim:   oklch(0.45 0.10 var(--accent-h));
+  --accent-ghost: oklch(0.62 var(--accent-c) var(--accent-h) / 0.12);
+  --accent-fg: oklch(0.99 0.005 var(--accent-h));
+
+  /* ============ RISK LEVELS (ФСТЭК светофор) ============ */
+  --risk-critical:     oklch(0.58 0.22 25);
+  --risk-critical-bg:  oklch(0.58 0.22 25 / 0.14);
+  --risk-critical-br:  oklch(0.58 0.22 25 / 0.35);
+
+  --risk-high:         oklch(0.70 0.18 45);
+  --risk-high-bg:      oklch(0.70 0.18 45 / 0.14);
+  --risk-high-br:      oklch(0.70 0.18 45 / 0.35);
+
+  --risk-medium:       oklch(0.80 0.15 85);
+  --risk-medium-bg:    oklch(0.80 0.15 85 / 0.15);
+  --risk-medium-br:    oklch(0.80 0.15 85 / 0.4);
+
+  --risk-low:          oklch(0.70 0.14 155);
+  --risk-low-bg:       oklch(0.70 0.14 155 / 0.14);
+  --risk-low-br:       oklch(0.70 0.14 155 / 0.35);
+
+  --risk-info:         oklch(0.68 0.12 235);
+  --risk-info-bg:      oklch(0.68 0.12 235 / 0.12);
+  --risk-info-br:      oklch(0.68 0.12 235 / 0.3);
+
+  /* ============ SEMANTIC (DARK by default) ============ */
+  --bg:         var(--n-1000);
+  --bg-elev-1:  var(--n-950);
+  --bg-elev-2:  var(--n-900);
+  --bg-elev-3:  var(--n-850);
+  --bg-hover:   oklch(0.2 0.01 250);
+  --bg-active:  oklch(0.24 0.014 250);
+  --bg-glass:   oklch(0.12 0.008 250 / 0.7);
+
+  --border:     oklch(0.24 0.012 250);
+  --border-strong: oklch(0.3 0.012 250);
+  --border-focus: var(--accent);
+
+  --fg:         oklch(0.97 0.004 250);
+  --fg-muted:   oklch(0.72 0.01 250);
+  --fg-dim:     oklch(0.55 0.012 250);
+  --fg-faint:   oklch(0.4 0.014 250);
+
+  /* ============ TYPE ============ */
+  --font-sans: 'Inter', 'Inter Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', ui-monospace, Menlo, Consolas, monospace;
+
+  --text-2xs: 11px;
+  --text-xs:  12px;
+  --text-sm:  13px;
+  --text-base:14px;
+  --text-md:  15px;
+  --text-lg:  17px;
+  --text-xl:  20px;
+  --text-2xl: 24px;
+  --text-3xl: 30px;
+  --text-4xl: 38px;
+
+  --lh-tight: 1.15;
+  --lh-snug: 1.3;
+  --lh-normal: 1.5;
+
+  /* ============ RADII ============ */
+  --r-xs: 3px;
+  --r-sm: 5px;
+  --r-md: 7px;
+  --r-lg: 10px;
+  --r-xl: 14px;
+  --r-pill: 9999px;
+
+  /* ============ SHADOW ============ */
+  --sh-sm: 0 1px 2px oklch(0 0 0 / 0.4);
+  --sh-md: 0 4px 12px oklch(0 0 0 / 0.35), 0 1px 2px oklch(0 0 0 / 0.3);
+  --sh-lg: 0 12px 32px oklch(0 0 0 / 0.45), 0 2px 6px oklch(0 0 0 / 0.3);
+  --sh-focus: 0 0 0 3px oklch(0.62 var(--accent-c) var(--accent-h) / 0.35);
+
+  /* ============ SPACING ============ */
+  --s-0: 0;
+  --s-1: 2px;
+  --s-2: 4px;
+  --s-3: 6px;
+  --s-4: 8px;
+  --s-5: 12px;
+  --s-6: 16px;
+  --s-7: 20px;
+  --s-8: 24px;
+  --s-10: 32px;
+  --s-12: 40px;
+  --s-16: 56px;
+
+  /* ============ LAYOUT ============ */
+  --sidebar-w: 232px;
+  --sidebar-w-collapsed: 56px;
+  --topbar-h: 48px;
+
+  --transition: 160ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  --transition-slow: 260ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+/* ============ LIGHT THEME ============ */
+[data-theme="light"] {
+  --bg:         var(--n-50);
+  --bg-elev-1:  var(--n-0);
+  --bg-elev-2:  var(--n-0);
+  --bg-elev-3:  var(--n-100);
+  --bg-hover:   var(--n-100);
+  --bg-active:  var(--n-150);
+  --bg-glass:   oklch(1 0 0 / 0.75);
+
+  --border:     var(--n-200);
+  --border-strong: var(--n-300);
+
+  --fg:         var(--n-950);
+  --fg-muted:   var(--n-700);
+  --fg-dim:     var(--n-500);
+  --fg-faint:   var(--n-400);
+
+  --sh-sm: 0 1px 2px oklch(0 0 0 / 0.05);
+  --sh-md: 0 4px 10px oklch(0 0 0 / 0.06), 0 1px 2px oklch(0 0 0 / 0.04);
+  --sh-lg: 0 14px 30px oklch(0 0 0 / 0.1), 0 2px 4px oklch(0 0 0 / 0.04);
+}
+
+/* ============ ACCENT VARIANTS ============ */
+[data-accent="indigo"] { --accent-h: 265; --accent-c: 0.17; }
+[data-accent="cyan"]   { --accent-h: 215; --accent-c: 0.16; }
+[data-accent="emerald"]{ --accent-h: 160; --accent-c: 0.15; }
+[data-accent="amber"]  { --accent-h: 70;  --accent-c: 0.16; }
+[data-accent="crimson"]{ --accent-h: 20;  --accent-c: 0.18; }
+
+/* ============ GLOBAL ============ */
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--lh-normal);
+  color: var(--fg);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "cv11", "ss01", "ss03";
+}
+button, input, select, textarea { font-family: inherit; font-size: inherit; color: inherit; }
+:focus-visible { outline: none; box-shadow: var(--sh-focus); border-radius: var(--r-sm); }
+::selection { background: var(--accent-ghost); color: var(--fg); }
+
+/* Scrollbar */
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; border: 2px solid var(--bg); }
+*::-webkit-scrollbar-thumb:hover { background: var(--fg-faint); }
+
+/* Mono chip */
+.mono { font-family: var(--font-mono); font-variant-ligatures: none; letter-spacing: -0.01em; }
+.num  { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+
+/* ============ DENSITY VARIANT ============ */
+[data-density="comfortable"] {
+  --text-base: 15px;
+  --s-5: 14px; --s-6: 18px;
+}
