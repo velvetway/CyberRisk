@@ -1,11 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { authFetch } from "../api/client";
-import { Asset, Threat, RiskPreviewResponse, RiskRecommendation } from "../types";
-import { RiskHeatmapSingle } from "../components/RiskHeatmapSingle";
-import { getPriorityLabel, getRecommendationCategoryLabel, getRiskLevelLabel } from "../utils/i18n";
+import { Asset, Threat, RiskPreviewResponse } from "../types";
+import { getPriorityLabel, getRiskLevelLabel } from "../utils/i18n";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
-import { Calculator, Download, Layers, ShieldAlert, Cpu, Server, Activity } from "lucide-react";
+import { Calculator, Download, Layers, ShieldAlert, Activity } from "lucide-react";
 
 export const RiskPreviewPage: React.FC = () => {
     const [assets, setAssets] = useState<Asset[]>([]);

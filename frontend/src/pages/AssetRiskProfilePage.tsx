@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { authFetch } from "../api/client";
 import { getPriorityLabel, getRiskLevelLabel, getThreatTypeLabel } from "../utils/i18n";
 import { motion } from "framer-motion";
-import { ArrowLeft, ShieldAlert, ShieldX, ChevronDown, ChevronUp, CheckCircle, AlertTriangle } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronUp, CheckCircle } from "lucide-react";
 
 interface AssetRisk {
     threat_id: number;

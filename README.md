@@ -1,6 +1,48 @@
 # CyberRisk Platform
 
-Комплексная платформа по управлению киберрисками и каталогом российского ПО. Репозиторий объединяет сервер на Go/Fiber, PostgreSQL, слой расчёта рисков и SPA‑фронтенд на React/TypeScript с полностью русским интерфейсом.
+[![CI](https://github.com/velvetway/CyberRisk/actions/workflows/ci.yml/badge.svg)](https://github.com/velvetway/CyberRisk/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Go](https://img.shields.io/badge/Go-1.25-00ADD8?logo=go)](go.mod)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)](frontend/package.json)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-336791?logo=postgresql&logoColor=white)](docker-compose.yml)
+
+Комплексная платформа по управлению киберрисками и каталогом российского ПО. Сервер на Go/Fiber, PostgreSQL, слой расчёта рисков и SPA‑фронтенд на React/TypeScript с полностью русским интерфейсом. Заточена под отраслевые требования РФ: реестр Минцифры, сертификаты ФСТЭК/ФСБ, БДУ ФСТЭК.
+
+## Скриншоты
+
+| Активы | Карта рисков |
+|---|---|
+| ![Активы](docs/screenshots/assets.png) | ![Карта рисков](docs/screenshots/risk-map.png) |
+
+| Справочник ПО | Симулятор риска |
+|---|---|
+| ![Справочник ПО](docs/screenshots/software.png) | ![Симулятор риска](docs/screenshots/risk-simulator.png) |
+
+<details><summary>Вход в систему</summary>
+
+![Вход](docs/screenshots/login.png)
+
+</details>
+
+## Быстрый старт
+
+```bash
+git clone https://github.com/velvetway/CyberRisk.git
+cd CyberRisk
+docker compose up --build
+```
+
+Затем:
+- Фронтенд: <http://localhost:3000>
+- API: <http://localhost:8081>
+
+Создайте пользователя через форму регистрации или API:
+
+```bash
+curl -X POST http://localhost:8081/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"username":"demo","password":"demo1234","role":"admin"}'
+```
 
 ## Содержание
 

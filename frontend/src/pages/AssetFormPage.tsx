@@ -4,7 +4,7 @@ import { authFetch } from "../api/client";
 import { DataCategory, ProtectionLevel, KIICategory } from "../types";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
-import { Save, X, Info, ShieldAlert, Cpu, Database, Server, AppWindow, Globe, Laptop, Smartphone, Cloud } from "lucide-react";
+import { Save, X, Info, ShieldAlert, Server } from "lucide-react";
 
 interface AssetFormData {
     name: string;

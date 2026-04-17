@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { api, authFetch } from "../api/client";
+import { authFetch } from "../api/client";
 import { Software, SoftwareCategory } from "../types";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
-import { Search, Filter, CheckCircle2, ShieldAlert } from "lucide-react";
+import { Search } from "lucide-react";
 
 export const SoftwareCatalogPage: React.FC = () => {
     // ... [existing normalization logic from SoftwareCatalogPage, copying it...]
@@ -50,6 +50,7 @@ export const SoftwareCatalogPage: React.FC = () => {
 
     useEffect(() => {
         fetchData();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const fetchData = async () => {
