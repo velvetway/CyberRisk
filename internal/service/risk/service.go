@@ -19,6 +19,9 @@ type Service interface {
 	AssetRiskProfile(ctx context.Context, assetID int64) ([]AssetRisk, error)
 	// Новый PTSZI граф атаки для пары актив+угроза с формулой W_i.
 	AssembleAttackPath(ctx context.Context, assetID, threatID int64) (*domain.AttackPath, error)
+	// Справочники для PTSZI-графа
+	ListThreatSources(ctx context.Context) ([]domain.ThreatSource, error)
+	ListDestructiveActions(ctx context.Context) ([]domain.DestructiveAction, error)
 }
 
 // OverviewPoint — точка на глобальной карте рисков.
@@ -273,6 +276,16 @@ func (s *service) AssembleAttackPath(ctx context.Context, assetID, threatID int6
 		W:                  w,
 		Level:              LevelFromW(w),
 	}, nil
+}
+
+// ListThreatSources — справочник всех источников угроз (S1..Sn).
+func (s *service) ListThreatSources(ctx context.Context) ([]domain.ThreatSource, error) {
+	return s.sourceRepo.List(ctx)
+}
+
+// ListDestructiveActions — справочник всех деструктивных действий (DA1..DAn).
+func (s *service) ListDestructiveActions(ctx context.Context) ([]domain.DestructiveAction, error) {
+	return s.daRepo.List(ctx)
 }
 
 // vulnsForAsset — вспомогательный метод: уязвимости, привязанные к активу.

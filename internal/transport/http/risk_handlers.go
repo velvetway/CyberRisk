@@ -2,6 +2,8 @@
 package http
 
 import (
+	"strconv"
+
 	"Diplom/internal/report"
 	"Diplom/internal/service/risk"
 
@@ -142,4 +144,42 @@ func (h *RiskHandler) GenerateRiskPDF(c *fiber.Ctx) error {
 	c.Set("Content-Type", "application/pdf")
 	c.Set("Content-Disposition", "attachment; filename=risk_report.pdf")
 	return c.Send(pdfBytes)
+}
+
+//////////////////// PTSZI GRAPH ////////////////////
+
+// GET /api/risk/graph/:asset_id/:threat_id
+func (h *RiskHandler) riskGraph(c *fiber.Ctx) error {
+	assetID, err := strconv.ParseInt(c.Params("asset_id"), 10, 64)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid asset_id"})
+	}
+	threatID, err := strconv.ParseInt(c.Params("threat_id"), 10, 64)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid threat_id"})
+	}
+
+	path, err := h.svc.AssembleAttackPath(c.Context(), assetID, threatID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(path)
+}
+
+// GET /api/threat-sources
+func (h *RiskHandler) listThreatSources(c *fiber.Ctx) error {
+	out, err := h.svc.ListThreatSources(c.Context())
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(out)
+}
+
+// GET /api/destructive-actions
+func (h *RiskHandler) listDestructiveActions(c *fiber.Ctx) error {
+	out, err := h.svc.ListDestructiveActions(c.Context())
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(out)
 }
