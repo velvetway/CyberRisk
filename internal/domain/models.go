@@ -191,6 +191,10 @@ type Threat struct {
 	Description      *string          `db:"description"`
 	BaseLikelihood   int16            `db:"base_likelihood"`
 
+	// PTSZI модель
+	QThreat   float64 `db:"q_threat"   json:"q_threat"`
+	QSeverity float64 `db:"q_severity" json:"q_severity"`
+
 	// БДУ ФСТЭК
 	BDUID                 *string `db:"bdu_id"`                 // УБИ.001, УБИ.002, etc.
 	AttackVector          *string `db:"attack_vector"`          // Сетевой, Локальный, Физический
