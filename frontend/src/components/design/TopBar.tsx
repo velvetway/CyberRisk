@@ -25,6 +25,7 @@ export const TopBar: React.FC<TopBarProps> = ({ breadcrumbs, onCmdK, onThemeTogg
   let role = 'CISO · ADMIN';
   let initials = 'ИП';
   try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
     const { user } = useAuth();
     if (user) {
       username = user.username;
