@@ -27,6 +27,8 @@ export const ThreatList: React.FC<ThreatListProps> = ({ paths, selectedThreatId,
         }
         case 'name':
           return a.threat.name.localeCompare(b.threat.name, 'ru');
+        default:
+          return 0;
       }
     });
     return copy;
