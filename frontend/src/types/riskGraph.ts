@@ -42,3 +42,16 @@ export interface AttackPath {
   z: number;
   level: 'low' | 'medium' | 'high' | 'critical';
 }
+
+export interface AssetAggregate {
+  w_max: number;
+  level: 'info' | 'low' | 'medium' | 'high' | 'critical';
+  threat_count: number;
+  uncovered_count: number;
+}
+
+export interface AssetAttackPathsResponse {
+  asset: { id: number; name: string };
+  aggregate: AssetAggregate;
+  paths: AttackPath[];
+}
