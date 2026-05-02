@@ -146,6 +146,7 @@ func NewServer(_ context.Context, db *pgxpool.Pool, jwtSecret string) *fiber.App
 	readOnly.Get("/risk/overview", riskHandler.overview)
 	readOnly.Get("/risk/asset/:id", riskHandler.assetRiskProfile)
 	readOnly.Get("/risk/graph/:asset_id/:threat_id", riskHandler.riskGraph)
+	readOnly.Get("/risk/asset/:asset_id/attack-paths", riskHandler.assetAttackPaths)
 	readOnly.Get("/threat-sources", riskHandler.listThreatSources)
 	readOnly.Get("/destructive-actions", riskHandler.listDestructiveActions)
 	write.Post("/risk/preview", riskHandler.previewRisk)
