@@ -100,11 +100,14 @@ export function buildSankeyGraph(
     }
   }
 
-  // ST → VL: по относительной severity (сумма = 1)
-  const totalSev = path.vulnerable_links.reduce((a, v) => a + (v.severity || 1), 0);
+  // ST → VL: по относительной severity (сумма = 1).
+  // severity клампим к минимуму 1 — отрицательные значения недопустимы для flow,
+  // нулевые попадут под равномерный fallback ниже.
+  const safeSev = (s: number) => Math.max(1, s);
+  const totalSev = path.vulnerable_links.reduce((a, v) => a + safeSev(v.severity), 0);
   if (path.vulnerable_links.length > 0) {
     for (const vl of path.vulnerable_links) {
-      const sev = vl.severity || 1;
+      const sev = safeSev(vl.severity);
       const value = totalSev > 0 ? sev / totalSev : 1 / path.vulnerable_links.length;
       links.push({
         source: 'ST',
@@ -118,7 +121,7 @@ export function buildSankeyGraph(
   // Per-VL: VL → C (только enabled), VL → DA (passthrough)
   for (const vl of path.vulnerable_links) {
     const inflow = totalSev > 0
-      ? (vl.severity || 1) / totalSev
+      ? safeSev(vl.severity) / totalSev
       : 1 / Math.max(1, path.vulnerable_links.length);
     const enabled = vl.coverage_controls.filter(c => !disabledControlIds.has(c.id));
     const sumC = enabled.reduce((a, c) => a + c.coverage, 0);

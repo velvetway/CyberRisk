@@ -107,6 +107,21 @@ describe('buildSankeyGraph', () => {
     const v1 = g.links.find(l => l.target === 'VL1')!;
     expect(v1.value).toBeCloseTo(0.8, 9);
   });
+
+  test('negative severity values are clamped — no negative flow', () => {
+    const path = minimalPath({
+      vulnerable_links: [
+        { vulnerability_id: 1, name: 'V1', severity: -5, coverage_controls: [], uncovered: true },
+        { vulnerability_id: 2, name: 'V2', severity: 10, coverage_controls: [], uncovered: true },
+      ],
+    });
+    const g = buildSankeyGraph(path);
+    for (const l of g.links) {
+      expect(l.value).toBeGreaterThanOrEqual(0);
+    }
+    const total = g.links.filter(l => l.kind === 'ST->VL').reduce((a, l) => a + l.value, 0);
+    expect(total).toBeCloseTo(1, 9);
+  });
 });
 
 describe('recomputeW', () => {
@@ -167,5 +182,6 @@ describe('recomputeW', () => {
     const r = recomputeW(path, new Set());
     expect(r.qReaction).toBe(0);
     expect(r.w).toBeCloseTo((0.4 + 0.3 + 1) / 3, 9);
+    expect(Math.abs(r.delta)).toBeLessThan(1e-9);
   });
 });
