@@ -48,21 +48,31 @@ export const RiskGraphPage: React.FC = () => {
     if (requestedThreatId) {
       const id = parseInt(requestedThreatId, 10);
       if (response.paths.some(p => p.threat.id === id)) return id;
-      // requested threat is not in the asset's paths
-      toast.error(`Угроза id=${id} не найдена для этого актива`);
       return response.paths[0].threat.id;
     }
     return response.paths.reduce((acc, p) => p.w > acc.w ? p : acc, response.paths[0]).threat.id;
   }, [response, requestedThreatId]);
 
-  // Auto-sync ?threat= without push-state
+  // Surface invalid ?threat= deep-links via a side effect (not inside the memo).
+  useEffect(() => {
+    if (!response || !requestedThreatId) return;
+    const id = parseInt(requestedThreatId, 10);
+    if (!response.paths.some(p => p.threat.id === id)) {
+      toast.error(`Угроза id=${id} не найдена для этого актива`);
+    }
+  }, [response, requestedThreatId]);
+
+  // Auto-sync ?threat= without push-state. Intentionally omit `params` from
+  // the deps so a search-param mutation doesn't re-fire this effect; the
+  // load-bearing inputs are selectedThreatId and requestedThreatId only.
   useEffect(() => {
     if (selectedThreatId !== null && String(selectedThreatId) !== requestedThreatId) {
-      const next = new URLSearchParams(params);
+      const next = new URLSearchParams();
       next.set('threat', String(selectedThreatId));
       setParams(next, { replace: true });
     }
-  }, [selectedThreatId, requestedThreatId, params, setParams]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedThreatId, requestedThreatId]);
 
   // Reset what-if when switching threats
   useEffect(() => {
@@ -91,6 +101,28 @@ export const RiskGraphPage: React.FC = () => {
     }
     return m;
   }, [selectedPath]);
+
+  const handlePdf = async () => {
+    if (!response || selectedThreatId === null) return;
+    try {
+      const res = await authFetch('/api/risk/report/pdf', {
+        method: 'POST',
+        body: JSON.stringify({ asset_id: response.asset.id, threat_id: selectedThreatId }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `risk_${response.asset.id}_${selectedThreatId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      toast.error(`PDF: ${(e as Error).message}`);
+    }
+  };
 
   // ─────────────────── Render states ───────────────────
 
@@ -137,6 +169,7 @@ export const RiskGraphPage: React.FC = () => {
         assetName={response.asset.name}
         aggregate={response.aggregate}
         onBack={() => navigate(-1)}
+        onPdf={selectedThreatId !== null ? handlePdf : undefined}
       />
 
       <ThreatList

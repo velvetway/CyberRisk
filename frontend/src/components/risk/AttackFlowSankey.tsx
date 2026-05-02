@@ -43,10 +43,14 @@ export const AttackFlowSankey: React.FC<AttackFlowSankeyProps> = ({
 }) => {
   const [hoverNode, setHoverNode] = useState<string | null>(null);
 
+  // d3-sankey can't lay out a graph with no edges from VL — short-circuit
+  // when the path has zero vulnerable links. The useMemo below still runs
+  // unconditionally (rules of hooks), but we skip it when VL list is empty.
+  const noVL = path.vulnerable_links.length === 0;
+
   const layout = useMemo(() => {
+    if (noVL) return null;
     const graph = buildSankeyGraph(path, disabledControlIds);
-    const nodeIndex = new Map<string, number>();
-    graph.nodes.forEach((n, i) => nodeIndex.set(n.id, i));
 
     const sk = sankey<SankeyNodeData, SankeyLinkData>()
       .nodeWidth(NODE_WIDTH)
@@ -58,7 +62,21 @@ export const AttackFlowSankey: React.FC<AttackFlowSankeyProps> = ({
       nodes: graph.nodes.map(n => ({ ...n })),
       links: graph.links.map(l => ({ ...l })),
     });
-  }, [path, disabledControlIds]);
+  }, [path, disabledControlIds, noVL]);
+
+  if (noVL) {
+    return (
+      <div style={{
+        padding: '24px',
+        textAlign: 'center',
+        color: 'var(--fg-muted)',
+        background: 'var(--bg-elev-1)',
+        fontSize: 'var(--text-sm)',
+      }}>
+        У этого пути нет уязвимых звеньев — граф недоступен.
+      </div>
+    );
+  }
 
   const isHighlighted = (l: LayoutLink): boolean => {
     if (!hoverNode) return false;
@@ -106,7 +124,7 @@ export const AttackFlowSankey: React.FC<AttackFlowSankeyProps> = ({
         ))}
 
         {/* Links */}
-        {(layout.links as LayoutLink[]).map((l, i) => {
+        {(layout!.links as LayoutLink[]).map((l, i) => {
           const linkData = l as unknown as SankeyLinkData;
           const pathD = sankeyLinkHorizontal()(l) ?? '';
           const highlighted = isHighlighted(l);
@@ -127,7 +145,7 @@ export const AttackFlowSankey: React.FC<AttackFlowSankeyProps> = ({
         })}
 
         {/* Nodes */}
-        {(layout.nodes as LayoutNode[]).map(n => {
+        {(layout!.nodes as LayoutNode[]).map(n => {
           const x0 = n.x0 ?? 0, x1 = n.x1 ?? 0, y0 = n.y0 ?? 0, y1 = n.y1 ?? 0;
           const w = x1 - x0, h = Math.max(2, y1 - y0);
           const dimmed = !!(n.meta?.disabled);

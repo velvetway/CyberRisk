@@ -14,17 +14,23 @@ export const ControlPopover: React.FC<ControlPopoverProps> = ({
   control, disabled, anchor, onToggle, onClose,
 }) => {
   const ref = useRef<HTMLDivElement>(null);
+  const toggleRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    toggleRef.current?.focus();
+
     const onDocClick = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) onClose();
     };
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('mousedown', onDocClick);
     document.addEventListener('keydown', onKey);
+
     return () => {
       document.removeEventListener('mousedown', onDocClick);
       document.removeEventListener('keydown', onKey);
+      previouslyFocused?.focus?.();
     };
   }, [onClose]);
 
@@ -88,12 +94,13 @@ export const ControlPopover: React.FC<ControlPopoverProps> = ({
         }} />
       </div>
       <div style={{ marginTop: 14, display: 'flex', gap: 8 }}>
-        <Btn
-          variant={disabled ? 'primary' : 'outline'}
-          onClick={() => onToggle(control.id)}
-        >
-          {disabled ? 'Включить' : 'Выкл в симуляции'}
-        </Btn>
+        <span ref={(el) => {
+          toggleRef.current = el?.querySelector('button') ?? null;
+        }}>
+          <Btn variant={disabled ? 'primary' : 'outline'} onClick={() => onToggle(control.id)}>
+            {disabled ? 'Включить' : 'Выкл в симуляции'}
+          </Btn>
+        </span>
         <Btn variant="outline" onClick={onClose}>Закрыть</Btn>
       </div>
     </div>
