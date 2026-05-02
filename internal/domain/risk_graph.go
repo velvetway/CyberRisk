@@ -42,3 +42,18 @@ type ControlCoverage struct {
 	Name     string  `json:"name"`
 	Coverage float64 `json:"coverage"` // 0..1 from vulnerability_controls.coverage
 }
+
+// AssetAggregate — сводные метрики по всем угрозам одного актива.
+type AssetAggregate struct {
+	WMax           float64 `json:"w_max"`
+	Level          string  `json:"level"`
+	ThreatCount    int     `json:"threat_count"`
+	UncoveredCount int     `json:"uncovered_count"`
+}
+
+// AssetAttackPathsResponse — ответ bulk-эндпоинта /api/risk/asset/:asset_id/attack-paths.
+type AssetAttackPathsResponse struct {
+	Asset     AssetRef       `json:"asset"`
+	Aggregate AssetAggregate `json:"aggregate"`
+	Paths     []AttackPath   `json:"paths"`
+}
