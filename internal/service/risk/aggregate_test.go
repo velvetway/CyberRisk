@@ -60,3 +60,30 @@ func TestComputeAssetAggregate_MultipleUncoveredVLsInOnePath(t *testing.T) {
 		t.Errorf("UncoveredCount = %d, want 1 (count of paths with >=1 uncovered VL, not VLs)", agg.UncoveredCount)
 	}
 }
+
+func TestComputeAssetAggregate_NoneUncovered(t *testing.T) {
+	paths := []domain.AttackPath{
+		{W: 0.3, VulnerableLinks: []domain.VLNode{{Uncovered: false}, {Uncovered: false}}},
+		{W: 0.5, VulnerableLinks: []domain.VLNode{{Uncovered: false}}},
+	}
+	agg := ComputeAssetAggregate(paths)
+	if agg.UncoveredCount != 0 {
+		t.Errorf("UncoveredCount = %d, want 0 (no uncovered VLs on any path)", agg.UncoveredCount)
+	}
+	if agg.WMax != 0.5 {
+		t.Errorf("WMax = %v, want 0.5", agg.WMax)
+	}
+}
+
+func TestComputeAssetAggregate_PathWithNoVLs(t *testing.T) {
+	paths := []domain.AttackPath{
+		{W: 0.7, VulnerableLinks: nil},
+	}
+	agg := ComputeAssetAggregate(paths)
+	if agg.ThreatCount != 1 {
+		t.Errorf("ThreatCount = %d, want 1", agg.ThreatCount)
+	}
+	if agg.UncoveredCount != 0 {
+		t.Errorf("UncoveredCount = %d, want 0 (no VLs to be uncovered)", agg.UncoveredCount)
+	}
+}
