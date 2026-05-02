@@ -78,14 +78,14 @@ export function buildSankeyGraph(
       if (!allControls.has(c.id)) allControls.set(c.id, c);
     }
   }
-  for (const c of allControls.values()) {
+  allControls.forEach((c) => {
     nodes.push({
       id: `C${c.id}`,
       kind: 'C',
       label: c.name,
       meta: { coverage: c.coverage, disabled: disabledControlIds.has(c.id) },
     });
-  }
+  });
 
   // DA nodes
   for (const da of path.destructive_actions) {
