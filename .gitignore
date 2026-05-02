@@ -70,3 +70,6 @@ reports/
 
 # Fonts (if not committed)
 # internal/report/fonts/
+
+# Superpowers brainstorm session artifacts
+.superpowers/
