@@ -20,6 +20,8 @@ type Service interface {
 	AssetRiskProfile(ctx context.Context, assetID int64) ([]AssetRisk, error)
 	// Новый PTSZI граф атаки для пары актив+угроза с формулой W_i.
 	AssembleAttackPath(ctx context.Context, assetID, threatID int64) (*domain.AttackPath, error)
+	// Bulk: собрать AttackPath для всех релевантных угроз актива + агрегат.
+	AssembleAssetAttackPaths(ctx context.Context, assetID int64) (*domain.AssetAttackPathsResponse, error)
 	// Справочники для PTSZI-графа
 	ListThreatSources(ctx context.Context) ([]domain.ThreatSource, error)
 	ListDestructiveActions(ctx context.Context) ([]domain.DestructiveAction, error)
@@ -284,6 +286,48 @@ func (s *service) AssembleAttackPath(ctx context.Context, assetID, threatID int6
 		Z:                  z,
 		W:                  w,
 		Level:              LevelFromW(w),
+	}, nil
+}
+
+// AssembleAssetAttackPaths — собирает AttackPath для всех угроз из репозитория
+// для одного актива, отбрасывает полностью пустые (без S, VL и DA), считает
+// агрегатные метрики и возвращает единый ответ.
+func (s *service) AssembleAssetAttackPaths(ctx context.Context, assetID int64) (*domain.AssetAttackPathsResponse, error) {
+	if assetID <= 0 {
+		return nil, fmt.Errorf("assetID must be positive")
+	}
+
+	asset, err := s.assetsRepo.GetByID(ctx, assetID)
+	if err != nil {
+		return nil, fmt.Errorf("get asset: %w", err)
+	}
+	if asset == nil {
+		return nil, fmt.Errorf("asset not found")
+	}
+
+	threats, err := s.threatsRepo.List(ctx, repository.ThreatFilter{})
+	if err != nil {
+		return nil, fmt.Errorf("list threats: %w", err)
+	}
+
+	paths := make([]domain.AttackPath, 0, len(threats))
+	for _, t := range threats {
+		path, err := s.AssembleAttackPath(ctx, assetID, t.ID)
+		if err != nil {
+			// одна угроза не собралась — не валим весь ответ
+			continue
+		}
+		// Пропускаем абсолютно пустые пути: ни источников, ни VL, ни DA.
+		if len(path.Sources) == 0 && len(path.VulnerableLinks) == 0 && len(path.DestructiveActions) == 0 {
+			continue
+		}
+		paths = append(paths, *path)
+	}
+
+	return &domain.AssetAttackPathsResponse{
+		Asset:     domain.AssetRef{ID: asset.ID, Name: asset.Name},
+		Aggregate: ComputeAssetAggregate(paths),
+		Paths:     paths,
 	}, nil
 }
 
