@@ -259,8 +259,9 @@ export const AssetsPage: React.FC = () => {
                   </div>
                 </div>
               )}
-              <Btn variant="primary" fullWidth icon={<Icon name="flow" size={13} />} onClick={() => navigate(`/risk/graph/${sel.asset.id}`)}>Граф атаки</Btn>
-              <Btn variant="outline" fullWidth icon={<Icon name="edit" size={13} />} onClick={() => navigate(`/assets/edit/${sel.asset.id}`)}>Редактировать</Btn>
+              <Btn variant="primary" fullWidth icon={<Icon name="layers" size={13} />} onClick={() => navigate(`/assets/${sel.asset.id}`)}>Открыть карточку</Btn>
+              <Btn variant="outline" fullWidth icon={<Icon name="flow" size={13} />} onClick={() => navigate(`/risk/graph/${sel.asset.id}`)}>Граф атаки</Btn>
+              <Btn variant="ghost" fullWidth icon={<Icon name="edit" size={13} />} onClick={() => navigate(`/assets/edit/${sel.asset.id}`)}>Редактировать форму</Btn>
             </div>
           </div>
         </div>
