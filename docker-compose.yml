@@ -47,6 +47,9 @@ services:
       HTTP_PORT: "8081"
       JWT_SECRET: dev-secret-change-me
       APP_ENV: dev
+      BDU_SNAPSHOT_PATH: /data/bdu.sqlite
+    volumes:
+      - ./data:/data:ro
     ports:
       - "8081:8081"
 

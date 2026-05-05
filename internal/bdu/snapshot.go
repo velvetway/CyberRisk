@@ -103,11 +103,18 @@ FROM vulnerabilities WHERE id = ?`
 }
 
 // SoftwareLookup returns every БДУ vulnerability whose `software` row matches
-// the given vendor + name (case-insensitive substring on both sides).
+// the given vendor + name (substring on both sides).
 //
 // Used by the asset-vulnerability auto-detection in P6: when the operator
 // adds, say, "Astra Linux" to an asset, we materialize every relevant БДУ
 // record into asset_vulnerabilities.
+//
+// IMPORTANT: SQLite's stock `LOWER()` is ASCII-only — applying it to
+// Cyrillic strings is a silent no-op, so a `LOWER(vendor) LIKE
+// LOWER(pattern)` query never matches Russian vendor names. We therefore
+// keep vendor matching case-sensitive (the input is normally a verbatim
+// copy from the same СВПО registry as БДУ's `software.vendor`), and only
+// lowercase the (mostly Latin) name where ASCII LOWER is correct.
 //
 // `limit` caps the result set (default 200 if ≤ 0). The query joins the
 // `software` table, so duplicates are deduplicated by vulnerability id.
@@ -115,7 +122,7 @@ func (s *Snapshot) SoftwareLookup(ctx context.Context, vendor, name string, limi
 	if limit <= 0 {
 		limit = 200
 	}
-	vendorLike := "%" + strings.ToLower(strings.TrimSpace(vendor)) + "%"
+	vendorLike := "%" + strings.TrimSpace(vendor) + "%"
 	nameLike := "%" + strings.ToLower(strings.TrimSpace(name)) + "%"
 
 	const q = `
@@ -124,7 +131,7 @@ SELECT DISTINCT
        v.severity, v.severity_level, v.cvss_score, v.identify_year, v.has_exploit, v.has_fix
 FROM vulnerabilities v
 JOIN software s ON s.bdu_id = v.id
-WHERE LOWER(s.vendor) LIKE ? AND LOWER(s.name) LIKE ?
+WHERE s.vendor LIKE ? AND LOWER(s.name) LIKE ?
 ORDER BY v.cvss_score DESC NULLS LAST
 LIMIT ?`
 

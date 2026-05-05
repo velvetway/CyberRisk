@@ -6,9 +6,10 @@ import (
 )
 
 type Config struct {
-	DBDSN     string
-	HTTPPort  string
-	JWTSecret string
+	DBDSN           string
+	HTTPPort        string
+	JWTSecret       string
+	BDUSnapshotPath string // путь к bdu.sqlite (read-only снимок БДУ ФСТЭК)
 }
 
 // Load загружает конфиг из переменных окружения.
@@ -35,9 +36,15 @@ func Load() (*Config, error) {
 		jwtSecret = "dev-secret-change-me"
 	}
 
+	bduPath := os.Getenv("BDU_SNAPSHOT_PATH")
+	if bduPath == "" {
+		bduPath = "./data/bdu.sqlite"
+	}
+
 	return &Config{
-		DBDSN:     dsn,
-		HTTPPort:  port,
-		JWTSecret: jwtSecret,
+		DBDSN:           dsn,
+		HTTPPort:        port,
+		JWTSecret:       jwtSecret,
+		BDUSnapshotPath: bduPath,
 	}, nil
 }

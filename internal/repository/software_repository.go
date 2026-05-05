@@ -27,6 +27,8 @@ type SoftwareRepository interface {
 	Delete(ctx context.Context, id int64) error
 	ListCategories(ctx context.Context) ([]domain.SoftwareCategory, error)
 	ListAssetSoftware(ctx context.Context, assetID int64) ([]domain.AssetSoftwareWithSoftware, error)
+	AttachToAsset(ctx context.Context, assetID, softwareID int64, version *string) error
+	DetachFromAsset(ctx context.Context, assetID, softwareID int64) error
 }
 
 type softwareRepository struct {
@@ -260,4 +262,25 @@ ORDER BY sc.name`
 	}
 
 	return result, rows.Err()
+}
+
+func (r *softwareRepository) AttachToAsset(ctx context.Context, assetID, softwareID int64, version *string) error {
+	const q = `
+INSERT INTO asset_software (asset_id, software_id, version)
+VALUES ($1, $2, $3)
+ON CONFLICT (asset_id, software_id) DO UPDATE SET
+    version = EXCLUDED.version,
+    updated_at = now()`
+	if _, err := r.pool.Exec(ctx, q, assetID, softwareID, version); err != nil {
+		return fmt.Errorf("attach software to asset: %w", err)
+	}
+	return nil
+}
+
+func (r *softwareRepository) DetachFromAsset(ctx context.Context, assetID, softwareID int64) error {
+	const q = `DELETE FROM asset_software WHERE asset_id = $1 AND software_id = $2`
+	if _, err := r.pool.Exec(ctx, q, assetID, softwareID); err != nil {
+		return fmt.Errorf("detach software from asset: %w", err)
+	}
+	return nil
 }

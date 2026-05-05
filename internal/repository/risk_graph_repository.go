@@ -22,15 +22,17 @@ func NewRiskGraphRepository(pool *pgxpool.Pool) RiskGraphRepository {
 }
 
 // LoadVulnerableLinks возвращает VL-категории, прикреплённые к угрозе,
-// а для каждой — контроли, закрывающие эту категорию И внедрённые на активе.
+// для каждой — контроли, закрывающие эту категорию И внедрённые на активе,
+// плюс presence-индикатор: сколько активных asset_vulnerabilities этой
+// категории сейчас открыто на активе (по сути — счётчик CVE).
 //
 // VL-категории берутся из таблицы vl_categories (6 шт из диплома). Связь
-// «угроза → VL-категория» хранится в threat_vulnerable_links (после
-// миграции 034 — это FK на vl_categories.id, не на vulnerabilities.id).
+// «угроза → VL-категория» хранится в threat_vulnerable_links.
 //
-// Поле Uncovered семантически = «эта VL-категория есть у угрозы, но на
-// активе нет ни одного контроля, который её закрывает». В P6 это будет
-// уточнено через asset_vulnerabilities.vl_category_id (presence facts).
+// Поле Uncovered = «у угрозы есть эта VL-категория, на активе нет ни
+// одного контроля, который её закрывает». P6 добавил presence_count
+// (число CVE/БДУ-записей соответствующей категории на активе) — это
+// поле использует UI для предупреждения «найдено N свидетельств».
 func (r *riskGraphRepository) LoadVulnerableLinks(ctx context.Context, assetID, threatID int64) ([]domain.VLNode, error) {
 	const q = `
 WITH threat_vls AS (
@@ -47,6 +49,14 @@ covering_controls AS (
     FROM vl_category_controls vcc
     JOIN controls c        ON c.id = vcc.control_id
     JOIN asset_controls ac ON ac.control_id = c.id AND ac.asset_id = $1
+),
+presence AS (
+    SELECT vl_category_id, COUNT(*) AS cnt
+    FROM asset_vulnerabilities
+    WHERE asset_id = $1
+      AND vl_category_id IS NOT NULL
+      AND status IN ('open','in_progress','mitigated')
+    GROUP BY vl_category_id
 )
 SELECT tv.id,
        tv.code,
@@ -62,7 +72,8 @@ SELECT tv.id,
        ) AS controls_json,
        NOT EXISTS (
          SELECT 1 FROM covering_controls cc2 WHERE cc2.vl_category_id = tv.id
-       ) AS uncovered
+       ) AS uncovered,
+       COALESCE((SELECT cnt FROM presence p WHERE p.vl_category_id = tv.id), 0) AS presence_count
 FROM threat_vls tv
 LEFT JOIN covering_controls cc ON cc.vl_category_id = tv.id
 GROUP BY tv.id, tv.code, tv.name, tv.description
@@ -78,7 +89,7 @@ ORDER BY tv.code`
 	for rows.Next() {
 		var v domain.VLNode
 		var raw []byte
-		if err := rows.Scan(&v.CategoryID, &v.Code, &v.Name, &v.Description, &raw, &v.Uncovered); err != nil {
+		if err := rows.Scan(&v.CategoryID, &v.Code, &v.Name, &v.Description, &raw, &v.Uncovered, &v.PresenceCount); err != nil {
 			return nil, err
 		}
 		if len(raw) > 0 {

@@ -127,13 +127,25 @@ type Vulnerability struct {
 	UpdatedAt               time.Time `db:"updated_at"`
 }
 
+// AssetVulnerability — конкретная БДУ-уязвимость, обнаруженная (или вручную
+// добавленная) на активе. После P6 это инвентарь свидетельств наличия
+// VL-категории на активе, а не FK на legacy-таблицу `vulnerabilities`.
 type AssetVulnerability struct {
-	ID              int64                    `db:"id"`
-	AssetID         int64                    `db:"asset_id"`
-	VulnerabilityID int64                    `db:"vulnerability_id"`
-	Status          AssetVulnerabilityStatus `db:"status"`
-	CreatedAt       time.Time                `db:"created_at"`
-	UpdatedAt       time.Time                `db:"updated_at"`
+	ID            int64                    `db:"id"            json:"id"`
+	AssetID       int64                    `db:"asset_id"      json:"asset_id"`
+	BDUID         string                   `db:"bdu_id"        json:"bdu_id"`
+	CVE           *string                  `db:"cve"           json:"cve,omitempty"`
+	CWE           *string                  `db:"cwe"           json:"cwe,omitempty"`
+	VLCategoryID  *int16                   `db:"vl_category_id" json:"vl_category_id,omitempty"`
+	CVSSScore     *float64                 `db:"cvss_score"    json:"cvss_score,omitempty"`
+	SeverityLevel *int16                   `db:"severity_level" json:"severity_level,omitempty"`
+	Title         *string                  `db:"title"         json:"title,omitempty"`
+	Source        string                   `db:"source"        json:"source"` // "auto:asset_software" | "manual"
+	SoftwareID    *int64                   `db:"software_id"   json:"software_id,omitempty"`
+	Status        AssetVulnerabilityStatus `db:"status"        json:"status"`
+	DiscoveredAt  time.Time                `db:"discovered_at" json:"discovered_at"`
+	CreatedAt     time.Time                `db:"created_at"    json:"created_at"`
+	UpdatedAt     time.Time                `db:"updated_at"    json:"updated_at"`
 }
 
 // ---- Controls ----

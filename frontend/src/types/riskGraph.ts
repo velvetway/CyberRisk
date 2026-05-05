@@ -28,6 +28,7 @@ export interface VLNode {
   description?: string;
   coverage_controls: ControlCoverage[];
   uncovered: boolean;
+  presence_count?: number; // CVE/БДУ-записи этой категории, открытые на активе
 }
 
 export interface AttackPath {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 
+	"Diplom/internal/bdu"
 	"Diplom/internal/repository"
 	assetService "Diplom/internal/service/asset"
 	assetVulnService "Diplom/internal/service/asset_vulnerability"
@@ -19,7 +20,13 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func NewServer(_ context.Context, db *pgxpool.Pool, jwtSecret string) *fiber.App {
+// detectorBinder lets us call the optional SetVulnerabilityDetector method
+// on softwareService.service without exposing the concrete struct.
+type detectorBinder interface {
+	SetVulnerabilityDetector(softwareService.VulnerabilityDetector)
+}
+
+func NewServer(_ context.Context, db *pgxpool.Pool, jwtSecret string, bduSnap *bdu.Snapshot) *fiber.App {
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			code := fiber.StatusInternalServerError
@@ -83,10 +90,17 @@ func NewServer(_ context.Context, db *pgxpool.Pool, jwtSecret string) *fiber.App
 	vulnSvc := vulnerabilityService.NewService(vulnRepo)
 	vulnHandler := NewVulnerabilityHandler(vulnSvc)
 
-	// Asset-Vulnerability links
+	// Asset-Vulnerability links + autodetect через bdu-snapshot
 	assetVulnRepo := repository.NewAssetVulnerabilityRepository(db)
-	assetVulnSvc := assetVulnService.NewService(assetVulnRepo)
+	vlReader := repository.NewVLCategoryReader(db)
+	assetVulnSvc := assetVulnService.NewService(assetVulnRepo, softwareRepo, bduSnap, vlReader)
 	assetVulnHandler := NewAssetVulnerabilityHandler(assetVulnSvc)
+
+	// Wire autodetect into software service so AttachToAsset/DetachFromAsset
+	// auto-populate / cleanup asset_vulnerabilities for that ПО.
+	if d, ok := softwareSvc.(detectorBinder); ok {
+		d.SetVulnerabilityDetector(assetVulnSvc)
+	}
 
 	// Risk (PTSZI W-model)
 	threatSourceRepo := repository.NewThreatSourceRepository(db)
@@ -117,12 +131,15 @@ func NewServer(_ context.Context, db *pgxpool.Pool, jwtSecret string) *fiber.App
 	assetsRead.Get("/", assetHandler.listAssets)
 	assetsRead.Get("/:id", assetHandler.getAsset)
 	assetsRead.Get("/:assetID/vulnerabilities", assetVulnHandler.listForAsset)
+	assetsRead.Get("/:assetID/software", softwareHandler.listAssetSoftware)
 	assetsRead.Get("/:id/software/alternatives", assetHandler.assetSoftwareAlternatives)
 
 	assetsWrite := write.Group("/assets")
 	assetsWrite.Post("/", assetHandler.createAsset)
 	assetsWrite.Put("/:id", assetHandler.updateAsset)
 	assetsWrite.Post("/:assetID/vulnerabilities", assetVulnHandler.addToAsset)
+	assetsWrite.Post("/:assetID/software", softwareHandler.attachAssetSoftware)
+	assetsWrite.Delete("/:assetID/software/:softwareID", softwareHandler.detachAssetSoftware)
 
 	assetsAdmin := adminOnly.Group("/assets")
 	assetsAdmin.Delete("/:id", assetHandler.deleteAsset)

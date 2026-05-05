@@ -27,7 +27,10 @@ type ThreatRef struct {
 }
 
 // VLNode — VL-категория из диплома (всего 6 шт), плюс контроли,
-// закрывающие её на конкретном активе.
+// закрывающие её на конкретном активе, и presence-индикатор —
+// сколько CVE/БДУ-записей соответствующей категории сейчас активны
+// в инвентаре актива (asset_vulnerabilities). Используется UI-картой
+// «найдено N свидетельств», но не меняет формулу W в P6.
 type VLNode struct {
 	CategoryID       int16             `json:"category_id"`
 	Code             string            `json:"code"` // VL1..VL6
@@ -35,6 +38,7 @@ type VLNode struct {
 	Description      string            `json:"description,omitempty"`
 	CoverageControls []ControlCoverage `json:"coverage_controls"`
 	Uncovered        bool              `json:"uncovered"`
+	PresenceCount    int               `json:"presence_count"`
 }
 
 // ControlCoverage is the runtime view of a control that covers a given VL.

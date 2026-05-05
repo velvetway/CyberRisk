@@ -24,14 +24,38 @@ type Service interface {
 	SuggestAlternatives(ctx context.Context, softwareID int64) ([]domain.Software, error)
 	// Рекомендации по замене ПО на конкретном активе
 	SuggestAlternativesForAsset(ctx context.Context, assetID int64) ([]AssetSoftwareAlternative, error)
+
+	// ListInstalled — что установлено на активе. Возвращает связку link+software.
+	ListInstalled(ctx context.Context, assetID int64) ([]domain.AssetSoftwareWithSoftware, error)
+	// AttachToAsset привязывает ПО к активу. После успешной привязки запускается
+	// автодетекция CVE/БДУ через installed-vendor+name (если detector задан).
+	// Возвращает (количество найденных уязвимостей, ошибка).
+	AttachToAsset(ctx context.Context, assetID, softwareID int64, version *string) (int, error)
+	// DetachFromAsset снимает привязку и удаляет связанные авто-детекты.
+	DetachFromAsset(ctx context.Context, assetID, softwareID int64) error
+}
+
+// VulnerabilityDetector — слабая зависимость на сервис asset_vulnerability,
+// чтобы избежать циклического импорта между двумя пакетами. Реализуется
+// `asset_vulnerability.Service` в server.go.
+type VulnerabilityDetector interface {
+	AutoDetectFromSoftware(ctx context.Context, assetID, softwareID int64) (int, error)
+	RemoveBySoftware(ctx context.Context, assetID, softwareID int64) (int64, error)
 }
 
 type service struct {
-	repo repository.SoftwareRepository
+	repo     repository.SoftwareRepository
+	detector VulnerabilityDetector
 }
 
 func NewService(repo repository.SoftwareRepository) Service {
 	return &service{repo: repo}
+}
+
+// SetVulnerabilityDetector wires the auto-detect pipeline. Optional —
+// without it AttachToAsset/DetachFromAsset just touch asset_software.
+func (s *service) SetVulnerabilityDetector(d VulnerabilityDetector) {
+	s.detector = d
 }
 
 type CreateSoftwareInput struct {
@@ -274,6 +298,39 @@ func (s *service) SuggestAlternativesForAsset(ctx context.Context, assetID int64
 	}
 
 	return result, nil
+}
+
+func (s *service) ListInstalled(ctx context.Context, assetID int64) ([]domain.AssetSoftwareWithSoftware, error) {
+	if assetID <= 0 {
+		return nil, fmt.Errorf("invalid asset id")
+	}
+	return s.repo.ListAssetSoftware(ctx, assetID)
+}
+
+func (s *service) AttachToAsset(ctx context.Context, assetID, softwareID int64, version *string) (int, error) {
+	if assetID <= 0 || softwareID <= 0 {
+		return 0, fmt.Errorf("invalid asset_id or software_id")
+	}
+	if err := s.repo.AttachToAsset(ctx, assetID, softwareID, version); err != nil {
+		return 0, err
+	}
+	if s.detector != nil {
+		return s.detector.AutoDetectFromSoftware(ctx, assetID, softwareID)
+	}
+	return 0, nil
+}
+
+func (s *service) DetachFromAsset(ctx context.Context, assetID, softwareID int64) error {
+	if assetID <= 0 || softwareID <= 0 {
+		return fmt.Errorf("invalid asset_id or software_id")
+	}
+	if s.detector != nil {
+		// Сначала чистим инвентарь авто-детекта, потом снимаем сам link.
+		if _, err := s.detector.RemoveBySoftware(ctx, assetID, softwareID); err != nil {
+			return err
+		}
+	}
+	return s.repo.DetachFromAsset(ctx, assetID, softwareID)
 }
 
 func filterOutSoftware(list []domain.Software, excludeID int64) []domain.Software {
