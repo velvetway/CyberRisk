@@ -103,55 +103,103 @@ FROM vulnerabilities WHERE id = ?`
 }
 
 // SoftwareLookup returns every БДУ vulnerability whose `software` row matches
-// the given vendor + name (substring on both sides).
+// the given vendor + name + version.
 //
 // Used by the asset-vulnerability auto-detection in P6: when the operator
-// adds, say, "Astra Linux" to an asset, we materialize every relevant БДУ
-// record into asset_vulnerabilities.
+// adds, say, "Astra Linux" 1.7 to an asset, we materialize every relevant
+// БДУ record into asset_vulnerabilities.
 //
-// IMPORTANT: SQLite's stock `LOWER()` is ASCII-only — applying it to
-// Cyrillic strings is a silent no-op, so a `LOWER(vendor) LIKE
-// LOWER(pattern)` query never matches Russian vendor names. We therefore
-// keep vendor matching case-sensitive (the input is normally a verbatim
-// copy from the same СВПО registry as БДУ's `software.vendor`), and only
-// lowercase the (mostly Latin) name where ASCII LOWER is correct.
+// Версия (assetVersion) — точная строка с актива; пустое значение значит
+// «оператор не указал», тогда возвращаются все версии этого ПО. Фильтр
+// проводится через VersionMatches — поддерживает exact, "-" (catch-all)
+// и русские range-формы «от X до Y включительно».
 //
-// `limit` caps the result set (default 200 if ≤ 0). The query joins the
-// `software` table, so duplicates are deduplicated by vulnerability id.
-func (s *Snapshot) SoftwareLookup(ctx context.Context, vendor, name string, limit int) ([]Vulnerability, error) {
+// IMPORTANT: SQLite's stock `LOWER()` is ASCII-only — для кириллицы это
+// no-op, поэтому vendor matching выполняется case-sensitive (вход — обычно
+// дословная копия из того же реестра, что и `software.vendor`).
+//
+// `limit` каpит выходной результат (default 200). Внутри мы загружаем
+// до 5×limit строк из БДУ, потому что после version-фильтра и дедупа по
+// bdu_id остатки могут сильно сократиться.
+func (s *Snapshot) SoftwareLookup(ctx context.Context, vendor, name, assetVersion string, limit int) ([]Vulnerability, error) {
 	if limit <= 0 {
 		limit = 200
 	}
 	vendorLike := "%" + strings.TrimSpace(vendor) + "%"
 	nameLike := "%" + strings.ToLower(strings.TrimSpace(name)) + "%"
+	assetVer := strings.TrimSpace(assetVersion)
 
-	const q = `
-SELECT DISTINCT
-       v.id, v.name, v.description, v.software_names, v.vendors, v.cves_joined,
-       v.severity, v.severity_level, v.cvss_score, v.identify_year, v.has_exploit, v.has_fix
+	// Версионная стратегия:
+	// • Если оператор не указал версию — берём всё (старое поведение, дедуп по bdu_id).
+	// • Если указал — фильтруем в SQL по кандидатам: точное совпадение, catch-all
+	//   ('-'/''), либо любые range-формы ('от %', 'до %'). Дальше в Go доводим
+	//   фильтрацию до точного match через VersionMatches (для range-форм).
+	//
+	// Это даёт O(N_match) выборку даже для редких версий типа "4.2.6" вместо
+	// зачистки топ-1000 по CVSS, в которые редкая версия может не попасть.
+	var (
+		q    string
+		args []any
+	)
+	if assetVer == "" {
+		q = `
+SELECT v.id, v.name, v.description, v.software_names, v.vendors, v.cves_joined,
+       v.severity, v.severity_level, v.cvss_score, v.identify_year, v.has_exploit, v.has_fix,
+       s.version
 FROM vulnerabilities v
 JOIN software s ON s.bdu_id = v.id
 WHERE s.vendor LIKE ? AND LOWER(s.name) LIKE ?
 ORDER BY v.cvss_score DESC NULLS LAST
 LIMIT ?`
+		args = []any{vendorLike, nameLike, limit * 5}
+	} else {
+		q = `
+SELECT v.id, v.name, v.description, v.software_names, v.vendors, v.cves_joined,
+       v.severity, v.severity_level, v.cvss_score, v.identify_year, v.has_exploit, v.has_fix,
+       s.version
+FROM vulnerabilities v
+JOIN software s ON s.bdu_id = v.id
+WHERE s.vendor LIKE ? AND LOWER(s.name) LIKE ?
+  AND (s.version = ? OR s.version = '-' OR s.version = ''
+       OR s.version LIKE 'от %' OR s.version LIKE 'до %')
+ORDER BY v.cvss_score DESC NULLS LAST
+LIMIT ?`
+		args = []any{vendorLike, nameLike, assetVer, limit * 5}
+	}
 
-	rows, err := s.db.QueryContext(ctx, q, vendorLike, nameLike, limit)
+	rows, err := s.db.QueryContext(ctx, q, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	out := make([]Vulnerability, 0, 32)
+	out := make([]Vulnerability, 0, limit)
+	seen := make(map[string]bool)
 	for rows.Next() {
 		v := Vulnerability{}
 		var hasExploit, hasFix int
+		var bduVersion string
 		if err := rows.Scan(&v.ID, &v.Name, &v.Description, &v.SoftwareNames, &v.Vendors, &v.CVEs,
-			&v.Severity, &v.SeverityLevel, &v.CVSSScore, &v.IdentifyYear, &hasExploit, &hasFix); err != nil {
+			&v.Severity, &v.SeverityLevel, &v.CVSSScore, &v.IdentifyYear, &hasExploit, &hasFix,
+			&bduVersion); err != nil {
 			return nil, err
 		}
+		// Дедуп: одна и та же уязвимость может быть для нескольких версий
+		// одного и того же ПО — если хотя бы одна version row подошла под
+		// фильтр, уязвимость попадает в результат один раз.
+		if seen[v.ID] {
+			continue
+		}
+		if !VersionMatches(bduVersion, assetVer) {
+			continue
+		}
+		seen[v.ID] = true
 		v.HasExploit = hasExploit != 0
 		v.HasFix = hasFix != 0
 		out = append(out, v)
+		if len(out) >= limit {
+			break
+		}
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

@@ -39,7 +39,7 @@ type Service interface {
 // чтобы избежать циклического импорта между двумя пакетами. Реализуется
 // `asset_vulnerability.Service` в server.go.
 type VulnerabilityDetector interface {
-	AutoDetectFromSoftware(ctx context.Context, assetID, softwareID int64) (int, error)
+	AutoDetectFromSoftware(ctx context.Context, assetID, softwareID int64, assetVersion string) (int, error)
 	RemoveBySoftware(ctx context.Context, assetID, softwareID int64) (int64, error)
 }
 
@@ -315,7 +315,11 @@ func (s *service) AttachToAsset(ctx context.Context, assetID, softwareID int64, 
 		return 0, err
 	}
 	if s.detector != nil {
-		return s.detector.AutoDetectFromSoftware(ctx, assetID, softwareID)
+		v := ""
+		if version != nil {
+			v = *version
+		}
+		return s.detector.AutoDetectFromSoftware(ctx, assetID, softwareID, v)
 	}
 	return 0, nil
 }

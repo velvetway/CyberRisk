@@ -258,10 +258,11 @@ const SoftwareSection: React.FC<{
         {picker && (
           <SoftwarePicker
             onClose={() => setPicker(false)}
-            onPick={async sw => {
+            onPick={async (sw, version) => {
               try {
-                const r = await api.attachSoftware(assetID, sw.id);
-                setStatus(`✓ ${sw.name}: найдено ${r.detected_vulnerabilities} БДУ-уязвимостей`);
+                const r = await api.attachSoftware(assetID, sw.id, version || undefined);
+                const verHint = version ? ` (версия ${version})` : "";
+                setStatus(`✓ ${sw.name}${verHint}: найдено ${r.detected_vulnerabilities} БДУ-уязвимостей`);
                 setPicker(false);
                 await onChange();
               } catch (e: any) {
@@ -277,14 +278,14 @@ const SoftwareSection: React.FC<{
 
 const SoftwarePicker: React.FC<{
   onClose: () => void;
-  onPick: (sw: Software) => Promise<void> | void;
+  onPick: (sw: Software, version: string) => Promise<void> | void;
 }> = ({ onClose, onPick }) => {
   const [q, setQ] = useState("");
   const [results, setResults] = useState<Software[]>([]);
   const [searching, setSearching] = useState(false);
+  const [picked, setPicked] = useState<Software | null>(null);
+  const [version, setVersion] = useState("");
 
-  // Простой debounced search через ВЕБ-API; БД содержит ~3000 продуктов,
-  // поэтому без поиска грузить всё бесмысленно.
   useEffect(() => {
     if (q.trim().length < 2) {
       setResults([]);
@@ -293,8 +294,6 @@ const SoftwarePicker: React.FC<{
     const t = setTimeout(async () => {
       setSearching(true);
       try {
-        // Используем низкоуровневый запрос: api.searchSoftware пока не
-        // принимает свободный search-параметр.
         const res = await fetch(`/api/software?search=${encodeURIComponent(q.trim())}&limit=20`, {
           headers: { Authorization: `Bearer ${localStorage.getItem("token") ?? ""}` },
         });
@@ -322,37 +321,82 @@ const SoftwarePicker: React.FC<{
         padding: 16, border: "1px solid var(--border)",
       }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-          <strong>Поиск ПО в каталоге</strong>
+          <strong>{picked ? "Версия установленного ПО" : "Поиск ПО в каталоге"}</strong>
           <IconBtn onClick={onClose}><Icon name="x" /></IconBtn>
         </div>
-        <input
-          autoFocus
-          value={q}
-          onChange={e => setQ(e.target.value)}
-          placeholder="Astra Linux, 1С, КриптоПро…"
-          style={{
-            width: "100%", padding: "10px 12px", borderRadius: 8,
-            border: "1px solid var(--border)", background: "var(--bg-elev-1)",
-            color: "var(--fg)", marginBottom: 8, fontSize: 14,
-          }}
-        />
-        {searching && <div style={{ color: "var(--fg-muted)", fontSize: 12 }}>Поиск…</div>}
-        <div style={{ maxHeight: 380, overflowY: "auto" }}>
-          {results.map(sw => (
-            <div key={sw.id} style={{
-              padding: 10, borderBottom: "1px solid var(--border)",
-              cursor: "pointer", borderRadius: 6,
-            }}
-              onClick={() => onPick(sw)}
-            >
-              <div style={{ fontWeight: 600 }}>{sw.name}</div>
-              <div style={{ color: "var(--fg-muted)", fontSize: 12 }}>{sw.vendor}</div>
+
+        {picked ? (
+          <div>
+            <div style={{
+              padding: 12, borderRadius: 8, background: "var(--bg-elev-1)",
+              border: "1px solid var(--border)", marginBottom: 12,
+            }}>
+              <div style={{ fontWeight: 600 }}>{picked.name}</div>
+              <div style={{ color: "var(--fg-muted)", fontSize: 12 }}>{picked.vendor}</div>
             </div>
-          ))}
-          {!searching && q.trim().length >= 2 && results.length === 0 && (
-            <div style={{ color: "var(--fg-muted)", padding: 16, textAlign: "center" }}>Ничего не найдено</div>
-          )}
-        </div>
+            <label style={{ fontSize: 12, color: "var(--fg-faint)", marginBottom: 4, display: "block", textTransform: "uppercase", letterSpacing: 0.5 }}>
+              Версия (опционально)
+            </label>
+            <input
+              autoFocus
+              value={version}
+              onChange={e => setVersion(e.target.value)}
+              placeholder="например: 1.7, 8.0.21, 20.04 LTS"
+              style={{
+                width: "100%", padding: "10px 12px", borderRadius: 8,
+                border: "1px solid var(--border)", background: "var(--bg-elev-1)",
+                color: "var(--fg)", fontSize: 14, marginBottom: 8,
+              }}
+              onKeyDown={e => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  onPick(picked, version.trim());
+                }
+              }}
+            />
+            <div style={{ color: "var(--fg-muted)", fontSize: 11, marginBottom: 12 }}>
+              Версия фильтрует БДУ-уязвимости (точное совпадение или диапазон «от X до Y»).
+              Пусто → подтянуть всё для этого продукта.
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+              <Btn variant="ghost" size="sm" onClick={() => { setPicked(null); setVersion(""); }}>← Назад к поиску</Btn>
+              <Btn variant="primary" size="sm" onClick={() => onPick(picked, version.trim())}>
+                Привязать
+              </Btn>
+            </div>
+          </div>
+        ) : (
+          <>
+            <input
+              autoFocus
+              value={q}
+              onChange={e => setQ(e.target.value)}
+              placeholder="Astra Linux, 1С, КриптоПро…"
+              style={{
+                width: "100%", padding: "10px 12px", borderRadius: 8,
+                border: "1px solid var(--border)", background: "var(--bg-elev-1)",
+                color: "var(--fg)", marginBottom: 8, fontSize: 14,
+              }}
+            />
+            {searching && <div style={{ color: "var(--fg-muted)", fontSize: 12 }}>Поиск…</div>}
+            <div style={{ maxHeight: 380, overflowY: "auto" }}>
+              {results.map(sw => (
+                <div key={sw.id} style={{
+                  padding: 10, borderBottom: "1px solid var(--border)",
+                  cursor: "pointer", borderRadius: 6,
+                }}
+                  onClick={() => setPicked(sw)}
+                >
+                  <div style={{ fontWeight: 600 }}>{sw.name}</div>
+                  <div style={{ color: "var(--fg-muted)", fontSize: 12 }}>{sw.vendor}</div>
+                </div>
+              ))}
+              {!searching && q.trim().length >= 2 && results.length === 0 && (
+                <div style={{ color: "var(--fg-muted)", padding: 16, textAlign: "center" }}>Ничего не найдено</div>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </motion.div>
   );

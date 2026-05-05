@@ -46,7 +46,7 @@ func TestSnapshot_Smoke(t *testing.T) {
 	t.Logf("BDU:2014-00001: %s (CVSS %.1f, CWEs %v)", v.Name, v.CVSSScore, v.CWEs)
 
 	// Vendor lookup smoke — D-Link is well-represented in the snapshot.
-	matches, err := snap.SoftwareLookup(ctx, "D-Link", "DSR-500", 5)
+	matches, err := snap.SoftwareLookup(ctx, "D-Link", "DSR-500", "", 5)
 	if err != nil {
 		t.Fatalf("software lookup: %v", err)
 	}
