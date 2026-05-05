@@ -170,12 +170,12 @@ type ControlType struct {
 }
 
 type Control struct {
-	ID            int64     `db:"id"`
-	Name          string    `db:"name"`
-	ControlTypeID *int16    `db:"control_type_id"`
-	Description   *string   `db:"description"`
-	CreatedAt     time.Time `db:"created_at"`
-	UpdatedAt     time.Time `db:"updated_at"`
+	ID            int64     `db:"id"              json:"id"`
+	Name          string    `db:"name"            json:"name"`
+	ControlTypeID *int16    `db:"control_type_id" json:"control_type_id,omitempty"`
+	Description   *string   `db:"description"     json:"description,omitempty"`
+	CreatedAt     time.Time `db:"created_at"      json:"created_at"`
+	UpdatedAt     time.Time `db:"updated_at"      json:"updated_at"`
 }
 
 type AssetControl struct {

@@ -9,6 +9,7 @@ import (
 	assetService "Diplom/internal/service/asset"
 	assetVulnService "Diplom/internal/service/asset_vulnerability"
 	authService "Diplom/internal/service/auth"
+	controlService "Diplom/internal/service/control"
 	riskService "Diplom/internal/service/risk"
 	softwareService "Diplom/internal/service/software"
 	threatService "Diplom/internal/service/threat"
@@ -102,6 +103,11 @@ func NewServer(_ context.Context, db *pgxpool.Pool, jwtSecret string, bduSnap *b
 		d.SetVulnerabilityDetector(assetVulnSvc)
 	}
 
+	// Controls (catalogue + asset_controls bridge)
+	controlRepo := repository.NewControlRepository(db)
+	controlSvc := controlService.NewService(controlRepo)
+	controlHandler := NewControlHandler(controlSvc)
+
 	// Risk (PTSZI W-model)
 	threatSourceRepo := repository.NewThreatSourceRepository(db)
 	destructiveActionRepo := repository.NewDestructiveActionRepository(db)
@@ -132,6 +138,7 @@ func NewServer(_ context.Context, db *pgxpool.Pool, jwtSecret string, bduSnap *b
 	assetsRead.Get("/:id", assetHandler.getAsset)
 	assetsRead.Get("/:assetID/vulnerabilities", assetVulnHandler.listForAsset)
 	assetsRead.Get("/:assetID/software", softwareHandler.listAssetSoftware)
+	assetsRead.Get("/:assetID/controls", controlHandler.listForAsset)
 	assetsRead.Get("/:id/software/alternatives", assetHandler.assetSoftwareAlternatives)
 
 	assetsWrite := write.Group("/assets")
@@ -140,10 +147,15 @@ func NewServer(_ context.Context, db *pgxpool.Pool, jwtSecret string, bduSnap *b
 	assetsWrite.Post("/:assetID/vulnerabilities", assetVulnHandler.addToAsset)
 	assetsWrite.Post("/:assetID/software", softwareHandler.attachAssetSoftware)
 	assetsWrite.Delete("/:assetID/software/:softwareID", softwareHandler.detachAssetSoftware)
+	assetsWrite.Post("/:assetID/controls", controlHandler.attachToAsset)
+	assetsWrite.Delete("/:assetID/controls/:controlID", controlHandler.detachFromAsset)
 
 	assetsAdmin := adminOnly.Group("/assets")
 	assetsAdmin.Delete("/:id", assetHandler.deleteAsset)
 	assetsAdmin.Delete("/:assetID/vulnerabilities/:vulnID", assetVulnHandler.removeFromAsset)
+
+	// Catalogue: GET /api/controls — список всех методов противодействия
+	readOnly.Get("/controls", controlHandler.list)
 
 	// Threats
 	readOnly.Get("/threats", threatHandler.listThreats)

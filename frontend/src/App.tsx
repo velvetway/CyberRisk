@@ -11,6 +11,7 @@ import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { AssetsPage } from "./pages/AssetsPage";
 import { AssetFormPage } from "./pages/AssetFormPage";
+import { AssetDetailPage } from "./pages/AssetDetailPage";
 import { SoftwareCatalogPage } from "./pages/SoftwareCatalogPage";
 import { RiskGraphPage } from "./pages/RiskGraphPage";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -115,6 +116,7 @@ function RoutedApp() {
       <Route path="/assets" element={<LayoutGuard><AssetsPage /></LayoutGuard>} />
       <Route path="/assets/new" element={<LayoutGuard><AssetFormPage /></LayoutGuard>} />
       <Route path="/assets/edit/:id" element={<LayoutGuard><AssetFormPage /></LayoutGuard>} />
+      <Route path="/assets/:id" element={<LayoutGuard><AssetDetailPage /></LayoutGuard>} />
       <Route path="/software" element={<LayoutGuard><SoftwareCatalogPage /></LayoutGuard>} />
       <Route path="/risk/graph/:assetId" element={<LayoutGuard><RiskGraphPage /></LayoutGuard>} />
       <Route path="*" element={<LayoutGuard><AssetsPage /></LayoutGuard>} />

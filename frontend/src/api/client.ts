@@ -194,4 +194,115 @@ export const api = {
         if (params.certified) query.set("certified", "true");
         return request<Software[]>(`/api/software?${query.toString()}`);
     },
+
+    // P8: Asset detail page — установленное ПО, инвентарь CVE, контроли.
+
+    getAssetSoftware(assetID: number): Promise<AssetSoftwareLink[]> {
+        return request<AssetSoftwareLink[]>(`/api/assets/${assetID}/software`);
+    },
+
+    attachSoftware(assetID: number, softwareID: number, version?: string): Promise<{ detected_vulnerabilities: number }> {
+        return request<{ detected_vulnerabilities: number }>(`/api/assets/${assetID}/software`, {
+            method: "POST",
+            body: JSON.stringify({ software_id: softwareID, version }),
+        });
+    },
+
+    detachSoftware(assetID: number, softwareID: number): Promise<void> {
+        return request<void>(`/api/assets/${assetID}/software/${softwareID}`, { method: "DELETE" });
+    },
+
+    getAssetVulnerabilities(assetID: number): Promise<AssetVulnerability[]> {
+        return request<AssetVulnerability[]>(`/api/assets/${assetID}/vulnerabilities`);
+    },
+
+    addManualVulnerability(assetID: number, bduID: string, vlCategoryID?: number): Promise<void> {
+        return request<void>(`/api/assets/${assetID}/vulnerabilities`, {
+            method: "POST",
+            body: JSON.stringify({ bdu_id: bduID, vl_category_id: vlCategoryID }),
+        });
+    },
+
+    deleteAssetVulnerability(assetID: number, vulnID: number): Promise<void> {
+        return request<void>(`/api/assets/${assetID}/vulnerabilities/${vulnID}`, { method: "DELETE" });
+    },
+
+    getControls(): Promise<Control[]> {
+        return request<Control[]>("/api/controls");
+    },
+
+    getAssetControls(assetID: number): Promise<Control[]> {
+        return request<Control[]>(`/api/assets/${assetID}/controls`);
+    },
+
+    attachControl(assetID: number, controlID: number): Promise<void> {
+        return request<void>(`/api/assets/${assetID}/controls`, {
+            method: "POST",
+            body: JSON.stringify({ control_id: controlID }),
+        });
+    },
+
+    detachControl(assetID: number, controlID: number): Promise<void> {
+        return request<void>(`/api/assets/${assetID}/controls/${controlID}`, { method: "DELETE" });
+    },
+
+    getAssetAttackPaths(assetID: number): Promise<AssetAttackPathsResponse> {
+        return request<AssetAttackPathsResponse>(`/api/risk/asset/${assetID}/attack-paths`);
+    },
 };
+
+// ---------- P8 типы ----------
+
+export interface AssetSoftwareLink {
+    link: {
+        id: number;
+        asset_id: number;
+        software_id: number;
+        version?: string;
+        install_date?: string;
+        license_type?: string;
+        license_expires?: string;
+        notes?: string;
+        created_at: string;
+        updated_at: string;
+    };
+    software: Software;
+}
+
+export interface AssetVulnerability {
+    id: number;
+    asset_id: number;
+    bdu_id: string;
+    cve?: string;
+    cwe?: string;
+    vl_category_id?: number;
+    cvss_score?: number;
+    severity_level?: number;
+    title?: string;
+    source: string; // "auto:asset_software" | "manual"
+    software_id?: number;
+    status: string;
+    discovered_at: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface Control {
+    id: number;
+    name: string;
+    control_type_id?: number;
+    description?: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface AssetAttackPathsResponse {
+    asset: { id: number; name: string };
+    aggregate: {
+        w_max: number;
+        level: string;
+        threat_count: number;
+        uncovered_count: number;
+    };
+    paths: unknown[]; // подробные тип в types/riskGraph.ts; здесь не нужны
+}
