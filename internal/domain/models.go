@@ -92,6 +92,12 @@ type ThreatCategory struct {
 }
 
 // Threat — угроза в PTSZI-модели. q_threat и q_severity напрямую кормят формулу W.
+//
+// AppliesToAssetTypes — список id типов активов, на которые угроза реально
+// нацелена (выводится импортёром из «Объект воздействия» ФСТЭК). Пустой
+// массив = «применима ко всем типам». Используется applicability-фильтром
+// в risk service: пара (актив, угроза) исключается из overview, если тип
+// актива не входит в этот список.
 type Threat struct {
 	ID               int64            `db:"id"`
 	Name             string           `db:"name"`
@@ -103,6 +109,13 @@ type Threat struct {
 	QSeverity float64 `db:"q_severity" json:"q_severity"`
 
 	BDUID *string `db:"bdu_id"` // УБИ.001, УБИ.002 и т.д.
+
+	AppliesToTargets    *string `db:"applies_to_targets"     json:"applies_to_targets,omitempty"`
+	AppliesToAssetTypes []int16 `db:"applies_to_asset_types" json:"applies_to_asset_types,omitempty"`
+	ImpactC             bool    `db:"impact_c"               json:"impact_c"`
+	ImpactI             bool    `db:"impact_i"               json:"impact_i"`
+	ImpactA             bool    `db:"impact_a"               json:"impact_a"`
+	Status              *string `db:"status"                 json:"status,omitempty"`
 
 	CreatedAt time.Time `db:"created_at"`
 	UpdatedAt time.Time `db:"updated_at"`

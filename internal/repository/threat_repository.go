@@ -40,6 +40,12 @@ const threatSelectColumns = `
     q_threat,
     q_severity,
     bdu_id,
+    applies_to_targets,
+    applies_to_asset_types,
+    impact_c,
+    impact_i,
+    impact_a,
+    status,
     created_at,
     updated_at
 `
@@ -54,6 +60,12 @@ func scanThreat(row pgx.Row, t *domain.Threat) error {
 		&t.QThreat,
 		&t.QSeverity,
 		&t.BDUID,
+		&t.AppliesToTargets,
+		&t.AppliesToAssetTypes,
+		&t.ImpactC,
+		&t.ImpactI,
+		&t.ImpactA,
+		&t.Status,
 		&t.CreatedAt,
 		&t.UpdatedAt,
 	)
@@ -136,15 +148,20 @@ func (r *threatRepository) Update(ctx context.Context, t *domain.Threat) error {
 	const q = `
 UPDATE threats
 SET
-    name               = $1,
-    threat_category_id = $2,
-    source_type        = $3,
-    description        = $4,
-    q_threat           = $5,
-    q_severity         = $6,
-    bdu_id             = $7,
-    updated_at         = now()
-WHERE id = $8
+    name                  = $1,
+    threat_category_id    = $2,
+    source_type           = $3,
+    description           = $4,
+    q_threat              = $5,
+    q_severity            = $6,
+    bdu_id                = $7,
+    applies_to_targets    = $8,
+    applies_to_asset_types = $9,
+    impact_c              = $10,
+    impact_i              = $11,
+    impact_a              = $12,
+    updated_at            = now()
+WHERE id = $13
 RETURNING updated_at
 `
 	row := r.pool.QueryRow(ctx, q,
@@ -155,6 +172,11 @@ RETURNING updated_at
 		t.QThreat,
 		t.QSeverity,
 		t.BDUID,
+		t.AppliesToTargets,
+		t.AppliesToAssetTypes,
+		t.ImpactC,
+		t.ImpactI,
+		t.ImpactA,
 		t.ID,
 	)
 

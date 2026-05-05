@@ -68,14 +68,17 @@ func NewService(
 	}
 }
 
-// Overview builds one OverviewPoint per (asset, threat) pair.
+// Overview builds one OverviewPoint per (asset, threat) pair, filtered
+// down to applicable pairs only (см. IsApplicable). Без фильтра матрица
+// ~9×227 = 2000+ строк забивалась бы «угрозами для СУБД на рабочей
+// станции» — формально риск ноль, но шум огромный.
 func (s *service) Overview(ctx context.Context) ([]OverviewPoint, error) {
 	assets, err := s.assetsRepo.List(ctx, repository.AssetFilter{})
 	if err != nil {
 		return nil, fmt.Errorf("list assets: %w", err)
 	}
 
-	threats, err := s.threatsRepo.List(ctx, repository.ThreatFilter{})
+	threats, err := s.threatsRepo.List(ctx, repository.ThreatFilter{Limit: 500})
 	if err != nil {
 		return nil, fmt.Errorf("list threats: %w", err)
 	}
@@ -83,6 +86,9 @@ func (s *service) Overview(ctx context.Context) ([]OverviewPoint, error) {
 	result := make([]OverviewPoint, 0, len(assets)*len(threats))
 	for _, a := range assets {
 		for _, t := range threats {
+			if !IsApplicable(a, t) {
+				continue
+			}
 			path, err := s.AssembleAttackPath(ctx, a.ID, t.ID)
 			if err != nil {
 				continue
@@ -180,13 +186,16 @@ func (s *service) AssembleAssetAttackPaths(ctx context.Context, assetID int64) (
 		return nil, fmt.Errorf("asset not found")
 	}
 
-	threats, err := s.threatsRepo.List(ctx, repository.ThreatFilter{})
+	threats, err := s.threatsRepo.List(ctx, repository.ThreatFilter{Limit: 500})
 	if err != nil {
 		return nil, fmt.Errorf("list threats: %w", err)
 	}
 
 	paths := make([]domain.AttackPath, 0, len(threats))
 	for _, t := range threats {
+		if !IsApplicable(*asset, t) {
+			continue
+		}
 		path, err := s.AssembleAttackPath(ctx, assetID, t.ID)
 		if err != nil {
 			continue
