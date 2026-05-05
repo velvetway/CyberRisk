@@ -41,12 +41,14 @@ function bucketByVL(items: AssetVulnerability[]): VLBucket[] {
   return Array.from(buckets.values()).sort((a, b) => a.vlID - b.vlID);
 }
 
-function levelTone(score: number | undefined): "critical" | "high" | "medium" | "low" {
-  if (score == null) return "low";
-  if (score >= 9) return "critical";
-  if (score >= 7) return "high";
-  if (score >= 4) return "medium";
-  return "low";
+// Возвращает Chip-tone — должен совпадать с ChipTone из Primitives.tsx
+// (neutral | accent | success | warn | danger | ghost). Если вернуть кастомный
+// — Chip упадёт на toneStyles[undefined].bg.
+function levelTone(score: number | undefined): "danger" | "warn" | "neutral" {
+  if (score == null) return "neutral";
+  if (score >= 7) return "danger";   // critical/high CVSS
+  if (score >= 4) return "warn";     // medium CVSS
+  return "neutral";
 }
 
 export const AssetDetailPage: React.FC = () => {
@@ -360,13 +362,15 @@ const SoftwarePicker: React.FC<{
 // Section 2: Уязвимости и VL-категории
 // =====================================================================
 
-const VlChipColor: Record<string, "critical" | "high" | "medium" | "warn" | "neutral"> = {
+// Только валидные ChipTone (см. Primitives.tsx):
+// neutral | accent | success | warn | danger | ghost.
+const VlChipColor: Record<string, "warn" | "danger" | "neutral" | "accent"> = {
   VL1: "warn",
-  VL2: "high",
-  VL3: "critical",
+  VL2: "danger",
+  VL3: "danger",
   VL4: "warn",
   VL5: "neutral",
-  VL6: "critical",
+  VL6: "danger",
 };
 
 const VulnSection: React.FC<{
