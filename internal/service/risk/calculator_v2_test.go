@@ -34,7 +34,7 @@ func TestCalculateW_OneContour(t *testing.T) {
 }
 
 func TestCalculateW_ClampedToUnitInterval(t *testing.T) {
-	// Inputs out of [0,1] are clamped. Z clamped to [0.5, 1.0].
+	// Inputs out of [0,1] are clamped. Z snaps to {0.5, 1.0} (≥1.0 → 1.0).
 	got := CalculateW(1.5, 1.5, -0.5, 2.0)
 	// (1 + 1 + (1 - 0)) / 3 * 1 = 1.0
 	if !approxEq(got, 1.0) {
@@ -42,9 +42,9 @@ func TestCalculateW_ClampedToUnitInterval(t *testing.T) {
 	}
 }
 
-func TestCalculateW_ClampsNegativeZ(t *testing.T) {
-	// Z below 0.5 clamps to 0.5.
-	got := CalculateW(1.0, 1.0, 0.0, -1.0)
+func TestCalculateW_ClampsSubUnitZ(t *testing.T) {
+	// Any Z below 1.0 snaps to 0.5 per the PTSZI two-contour rule.
+	got := CalculateW(1.0, 1.0, 0.0, 0.99)
 	if !approxEq(got, 0.5) {
 		t.Fatalf("expected 0.5, got %v", got)
 	}
@@ -118,16 +118,12 @@ func TestZFromAsset_Isolated(t *testing.T) {
 	}
 }
 
-func TestZFromAsset_Stage(t *testing.T) {
-	a := domain.Asset{Environment: "stage", IsIsolated: false}
-	if got := ZFromAsset(a); !approxEq(got, 0.75) {
-		t.Fatalf("stage asset must be 0.75, got %v", got)
-	}
-}
-
-func TestZFromAsset_Dev(t *testing.T) {
-	a := domain.Asset{Environment: "dev", IsIsolated: false}
-	if got := ZFromAsset(a); !approxEq(got, 0.5) {
-		t.Fatalf("dev asset must be 0.5, got %v", got)
+func TestZFromAsset_NonIsolatedAlwaysOne(t *testing.T) {
+	// Per the PTSZI thesis Z depends only on isolation, not environment.
+	for _, env := range []domain.AssetEnvironment{"prod", "stage", "dev", "test"} {
+		a := domain.Asset{Environment: env, IsIsolated: false}
+		if got := ZFromAsset(a); !approxEq(got, 1.0) {
+			t.Errorf("env=%q non-isolated must be 1.0, got %v", env, got)
+		}
 	}
 }
