@@ -157,6 +157,53 @@ func NewServer(_ context.Context, db *pgxpool.Pool, jwtSecret string, bduSnap *b
 	// Catalogue: GET /api/controls — список всех методов противодействия
 	readOnly.Get("/controls", controlHandler.list)
 
+	// Asset types reference (для UI-маппинга id→имя в каталоге угроз).
+	readOnly.Get("/asset-types", func(c *fiber.Ctx) error {
+		rows, err := db.Query(c.Context(), `SELECT id, name, COALESCE(description, '') FROM asset_types ORDER BY id`)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		}
+		defer rows.Close()
+		type row struct {
+			ID          int16  `json:"id"`
+			Name        string `json:"name"`
+			Description string `json:"description"`
+		}
+		out := make([]row, 0, 8)
+		for rows.Next() {
+			var r row
+			if err := rows.Scan(&r.ID, &r.Name, &r.Description); err != nil {
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+			}
+			out = append(out, r)
+		}
+		return c.JSON(out)
+	})
+
+	// VL-категории справочник (UI-фильтры P9, графика P8).
+	readOnly.Get("/vl-categories", func(c *fiber.Ctx) error {
+		rows, err := db.Query(c.Context(), `SELECT id, code, name, COALESCE(description, '') FROM vl_categories ORDER BY id`)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		}
+		defer rows.Close()
+		type row struct {
+			ID          int16  `json:"id"`
+			Code        string `json:"code"`
+			Name        string `json:"name"`
+			Description string `json:"description"`
+		}
+		out := make([]row, 0, 6)
+		for rows.Next() {
+			var r row
+			if err := rows.Scan(&r.ID, &r.Code, &r.Name, &r.Description); err != nil {
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+			}
+			out = append(out, r)
+		}
+		return c.JSON(out)
+	})
+
 	// Threats
 	readOnly.Get("/threats", threatHandler.listThreats)
 	readOnly.Get("/threats/:id", threatHandler.getThreat)

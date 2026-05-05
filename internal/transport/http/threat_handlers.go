@@ -27,30 +27,42 @@ func (h *ThreatHandler) Register(r fiber.Router) {
 }
 
 type ThreatResponse struct {
-	ID               int64   `json:"id"`
-	Name             string  `json:"name"`
-	ThreatCategoryID *int16  `json:"threat_category_id,omitempty"`
-	SourceType       string  `json:"source_type"`
-	Description      *string `json:"description,omitempty"`
-	QThreat          float64 `json:"q_threat"`
-	QSeverity        float64 `json:"q_severity"`
-	BDUID            *string `json:"bdu_id,omitempty"`
-	CreatedAt        string  `json:"created_at"`
-	UpdatedAt        string  `json:"updated_at"`
+	ID                  int64   `json:"id"`
+	Name                string  `json:"name"`
+	ThreatCategoryID    *int16  `json:"threat_category_id,omitempty"`
+	SourceType          string  `json:"source_type"`
+	Description         *string `json:"description,omitempty"`
+	QThreat             float64 `json:"q_threat"`
+	QSeverity           float64 `json:"q_severity"`
+	BDUID               *string `json:"bdu_id,omitempty"`
+	AppliesToTargets    *string `json:"applies_to_targets,omitempty"`
+	AppliesToAssetTypes []int16 `json:"applies_to_asset_types,omitempty"`
+	ImpactC             bool    `json:"impact_c"`
+	ImpactI             bool    `json:"impact_i"`
+	ImpactA             bool    `json:"impact_a"`
+	Status              *string `json:"status,omitempty"`
+	CreatedAt           string  `json:"created_at"`
+	UpdatedAt           string  `json:"updated_at"`
 }
 
 func threatToResponse(t *domain.Threat) ThreatResponse {
 	return ThreatResponse{
-		ID:               t.ID,
-		Name:             t.Name,
-		ThreatCategoryID: t.ThreatCategoryID,
-		SourceType:       string(t.SourceType),
-		Description:      t.Description,
-		QThreat:          t.QThreat,
-		QSeverity:        t.QSeverity,
-		BDUID:            t.BDUID,
-		CreatedAt:        t.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:        t.UpdatedAt.Format(time.RFC3339),
+		ID:                  t.ID,
+		Name:                t.Name,
+		ThreatCategoryID:    t.ThreatCategoryID,
+		SourceType:          string(t.SourceType),
+		Description:         t.Description,
+		QThreat:             t.QThreat,
+		QSeverity:           t.QSeverity,
+		BDUID:               t.BDUID,
+		AppliesToTargets:    t.AppliesToTargets,
+		AppliesToAssetTypes: t.AppliesToAssetTypes,
+		ImpactC:             t.ImpactC,
+		ImpactI:             t.ImpactI,
+		ImpactA:             t.ImpactA,
+		Status:              t.Status,
+		CreatedAt:           t.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:           t.UpdatedAt.Format(time.RFC3339),
 	}
 }
 

@@ -30,13 +30,18 @@ func NewService(repo repository.ThreatRepository) Service {
 // QThreat   — степень реализации угрозы, ∈ [0,1] (Q^threat в формуле W).
 // QSeverity — степень опасности угрозы,  ∈ [0,1] (q^threat в формуле W).
 type CreateThreatInput struct {
-	Name             string  `json:"name"`
-	ThreatCategoryID *int16  `json:"threat_category_id"`
-	SourceType       string  `json:"source_type"` // external|internal|third_party
-	Description      *string `json:"description"`
-	QThreat          float64 `json:"q_threat"`
-	QSeverity        float64 `json:"q_severity"`
-	BDUID            *string `json:"bdu_id"`
+	Name                string  `json:"name"`
+	ThreatCategoryID    *int16  `json:"threat_category_id"`
+	SourceType          string  `json:"source_type"` // external|internal|third_party
+	Description         *string `json:"description"`
+	QThreat             float64 `json:"q_threat"`
+	QSeverity           float64 `json:"q_severity"`
+	BDUID               *string `json:"bdu_id"`
+	AppliesToTargets    *string `json:"applies_to_targets"`
+	AppliesToAssetTypes []int16 `json:"applies_to_asset_types"`
+	ImpactC             bool    `json:"impact_c"`
+	ImpactI             bool    `json:"impact_i"`
+	ImpactA             bool    `json:"impact_a"`
 }
 
 type UpdateThreatInput = CreateThreatInput
@@ -111,6 +116,11 @@ func (s *service) Update(ctx context.Context, id int64, in UpdateThreatInput) (*
 	t.QThreat = in.QThreat
 	t.QSeverity = in.QSeverity
 	t.BDUID = in.BDUID
+	t.AppliesToTargets = in.AppliesToTargets
+	t.AppliesToAssetTypes = in.AppliesToAssetTypes
+	t.ImpactC = in.ImpactC
+	t.ImpactI = in.ImpactI
+	t.ImpactA = in.ImpactA
 
 	if err := s.repo.Update(ctx, t); err != nil {
 		return nil, err

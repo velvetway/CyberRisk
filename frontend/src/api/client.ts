@@ -249,6 +249,23 @@ export const api = {
     getAssetAttackPaths(assetID: number): Promise<AssetAttackPathsResponse> {
         return request<AssetAttackPathsResponse>(`/api/risk/asset/${assetID}/attack-paths`);
     },
+
+    // P9: каталог угроз ФСТЭК и справочники.
+    getThreatsAll(limit = 500, offset = 0): Promise<ThreatFull[]> {
+        return request<ThreatFull[]>(`/api/threats?limit=${limit}&offset=${offset}`);
+    },
+    updateThreat(id: number, payload: ThreatUpdatePayload): Promise<ThreatFull> {
+        return request<ThreatFull>(`/api/threats/${id}`, {
+            method: "PUT",
+            body: JSON.stringify(payload),
+        });
+    },
+    getAssetTypes(): Promise<AssetTypeRef[]> {
+        return request<AssetTypeRef[]>("/api/asset-types");
+    },
+    getVLCategories(): Promise<VLCategoryRef[]> {
+        return request<VLCategoryRef[]>("/api/vl-categories");
+    },
 };
 
 // ---------- P8 типы ----------
@@ -305,4 +322,53 @@ export interface AssetAttackPathsResponse {
         uncovered_count: number;
     };
     paths: unknown[]; // подробные тип в types/riskGraph.ts; здесь не нужны
+}
+
+// ---------- P9 типы ----------
+
+export interface ThreatFull {
+    id: number;
+    name: string;
+    threat_category_id?: number;
+    source_type: string; // "external" | "internal" | "third_party"
+    description?: string;
+    q_threat: number;
+    q_severity: number;
+    bdu_id?: string;
+    applies_to_targets?: string;
+    applies_to_asset_types?: number[];
+    impact_c: boolean;
+    impact_i: boolean;
+    impact_a: boolean;
+    status?: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface ThreatUpdatePayload {
+    name: string;
+    threat_category_id?: number | null;
+    source_type: string;
+    description?: string | null;
+    q_threat: number;
+    q_severity: number;
+    bdu_id?: string | null;
+    applies_to_targets?: string | null;
+    applies_to_asset_types?: number[];
+    impact_c: boolean;
+    impact_i: boolean;
+    impact_a: boolean;
+}
+
+export interface AssetTypeRef {
+    id: number;
+    name: string;
+    description?: string;
+}
+
+export interface VLCategoryRef {
+    id: number;
+    code: string;
+    name: string;
+    description?: string;
 }
