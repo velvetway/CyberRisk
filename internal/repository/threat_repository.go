@@ -31,6 +31,34 @@ func NewThreatRepository(pool *pgxpool.Pool) ThreatRepository {
 	return &threatRepository{pool: pool}
 }
 
+const threatSelectColumns = `
+    id,
+    name,
+    threat_category_id,
+    source_type,
+    description,
+    q_threat,
+    q_severity,
+    bdu_id,
+    created_at,
+    updated_at
+`
+
+func scanThreat(row pgx.Row, t *domain.Threat) error {
+	return row.Scan(
+		&t.ID,
+		&t.Name,
+		&t.ThreatCategoryID,
+		&t.SourceType,
+		&t.Description,
+		&t.QThreat,
+		&t.QSeverity,
+		&t.BDUID,
+		&t.CreatedAt,
+		&t.UpdatedAt,
+	)
+}
+
 func (r *threatRepository) Create(ctx context.Context, t *domain.Threat) error {
 	const q = `
 INSERT INTO threats (
@@ -38,65 +66,39 @@ INSERT INTO threats (
     threat_category_id,
     source_type,
     description,
-    base_likelihood
+    q_threat,
+    q_severity,
+    bdu_id
 ) VALUES (
-    $1,$2,$3,$4,$5
-) RETURNING
-    id,
-    created_at,
-    updated_at
+    $1,$2,$3,$4,$5,$6,$7
+) RETURNING id, created_at, updated_at
 `
 	row := r.pool.QueryRow(ctx, q,
 		t.Name,
 		t.ThreatCategoryID,
 		t.SourceType,
 		t.Description,
-		t.BaseLikelihood,
+		t.QThreat,
+		t.QSeverity,
+		t.BDUID,
 	)
 
 	if err := row.Scan(&t.ID, &t.CreatedAt, &t.UpdatedAt); err != nil {
 		return fmt.Errorf("scan created threat: %w", err)
 	}
-
 	return nil
 }
 
 func (r *threatRepository) GetByID(ctx context.Context, id int64) (*domain.Threat, error) {
-	const q = `
-SELECT
-    id,
-    name,
-    threat_category_id,
-    source_type,
-    description,
-    base_likelihood,
-    q_threat,
-    q_severity,
-    created_at,
-    updated_at
-FROM threats
-WHERE id = $1
-`
+	q := `SELECT ` + threatSelectColumns + `FROM threats WHERE id = $1`
+
 	var t domain.Threat
-	err := r.pool.QueryRow(ctx, q, id).Scan(
-		&t.ID,
-		&t.Name,
-		&t.ThreatCategoryID,
-		&t.SourceType,
-		&t.Description,
-		&t.BaseLikelihood,
-		&t.QThreat,
-		&t.QSeverity,
-		&t.CreatedAt,
-		&t.UpdatedAt,
-	)
-	if err != nil {
+	if err := scanThreat(r.pool.QueryRow(ctx, q, id), &t); err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("get threat by id: %w", err)
 	}
-
 	return &t, nil
 }
 
@@ -108,22 +110,8 @@ func (r *threatRepository) List(ctx context.Context, f ThreatFilter) ([]domain.T
 		f.Offset = 0
 	}
 
-	const q = `
-SELECT
-    id,
-    name,
-    threat_category_id,
-    source_type,
-    description,
-    base_likelihood,
-    q_threat,
-    q_severity,
-    created_at,
-    updated_at
-FROM threats
-ORDER BY id
-LIMIT $1 OFFSET $2
-`
+	q := `SELECT ` + threatSelectColumns + `FROM threats ORDER BY id LIMIT $1 OFFSET $2`
+
 	rows, err := r.pool.Query(ctx, q, f.Limit, f.Offset)
 	if err != nil {
 		return nil, fmt.Errorf("list threats: %w", err)
@@ -133,27 +121,14 @@ LIMIT $1 OFFSET $2
 	var res []domain.Threat
 	for rows.Next() {
 		var t domain.Threat
-		if err := rows.Scan(
-			&t.ID,
-			&t.Name,
-			&t.ThreatCategoryID,
-			&t.SourceType,
-			&t.Description,
-			&t.BaseLikelihood,
-			&t.QThreat,
-			&t.QSeverity,
-			&t.CreatedAt,
-			&t.UpdatedAt,
-		); err != nil {
+		if err := scanThreat(rows, &t); err != nil {
 			return nil, fmt.Errorf("scan threat: %w", err)
 		}
 		res = append(res, t)
 	}
-
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("rows error: %w", err)
 	}
-
 	return res, nil
 }
 
@@ -161,13 +136,15 @@ func (r *threatRepository) Update(ctx context.Context, t *domain.Threat) error {
 	const q = `
 UPDATE threats
 SET
-    name = $1,
+    name               = $1,
     threat_category_id = $2,
-    source_type = $3,
-    description = $4,
-    base_likelihood = $5,
-    updated_at = now()
-WHERE id = $6
+    source_type        = $3,
+    description        = $4,
+    q_threat           = $5,
+    q_severity         = $6,
+    bdu_id             = $7,
+    updated_at         = now()
+WHERE id = $8
 RETURNING updated_at
 `
 	row := r.pool.QueryRow(ctx, q,
@@ -175,7 +152,9 @@ RETURNING updated_at
 		t.ThreatCategoryID,
 		t.SourceType,
 		t.Description,
-		t.BaseLikelihood,
+		t.QThreat,
+		t.QSeverity,
+		t.BDUID,
 		t.ID,
 	)
 
@@ -185,7 +164,6 @@ RETURNING updated_at
 		}
 		return fmt.Errorf("update threat: %w", err)
 	}
-
 	return nil
 }
 

@@ -24,29 +24,46 @@ func NewService(repo repository.ThreatRepository) Service {
 	return &service{repo: repo}
 }
 
+// CreateThreatInput is the API surface for creating/updating a threat under
+// the PTSZI W-model.
+//
+// QThreat   — степень реализации угрозы, ∈ [0,1] (Q^threat в формуле W).
+// QSeverity — степень опасности угрозы,  ∈ [0,1] (q^threat в формуле W).
 type CreateThreatInput struct {
 	Name             string  `json:"name"`
 	ThreatCategoryID *int16  `json:"threat_category_id"`
 	SourceType       string  `json:"source_type"` // external|internal|third_party
 	Description      *string `json:"description"`
-	BaseLikelihood   int16   `json:"base_likelihood"` // 1–5
+	QThreat          float64 `json:"q_threat"`
+	QSeverity        float64 `json:"q_severity"`
+	BDUID            *string `json:"bdu_id"`
 }
 
 type UpdateThreatInput = CreateThreatInput
 
-func (s *service) Create(ctx context.Context, in CreateThreatInput) (*domain.Threat, error) {
+func validateInput(in CreateThreatInput) (domain.ThreatSourceType, error) {
 	if in.Name == "" {
-		return nil, fmt.Errorf("name is required")
+		return "", fmt.Errorf("name is required")
 	}
-	if in.BaseLikelihood < 1 || in.BaseLikelihood > 5 {
-		return nil, fmt.Errorf("base_likelihood must be between 1 and 5")
+	if in.QThreat < 0 || in.QThreat > 1 {
+		return "", fmt.Errorf("q_threat must be in [0, 1]")
 	}
-
+	if in.QSeverity < 0 || in.QSeverity > 1 {
+		return "", fmt.Errorf("q_severity must be in [0, 1]")
+	}
 	st := domain.ThreatSourceType(in.SourceType)
 	switch st {
 	case domain.ThreatSourceExternal, domain.ThreatSourceInternal, domain.ThreatSourceThirdParty:
 	default:
-		return nil, fmt.Errorf("invalid source_type (must be external|internal|third_party)")
+		return "", fmt.Errorf("invalid source_type (must be external|internal|third_party)")
+	}
+	return st, nil
+}
+
+func (s *service) Create(ctx context.Context, in CreateThreatInput) (*domain.Threat, error) {
+	st, err := validateInput(in)
+	if err != nil {
+		return nil, err
 	}
 
 	t := &domain.Threat{
@@ -54,13 +71,14 @@ func (s *service) Create(ctx context.Context, in CreateThreatInput) (*domain.Thr
 		ThreatCategoryID: in.ThreatCategoryID,
 		SourceType:       st,
 		Description:      in.Description,
-		BaseLikelihood:   in.BaseLikelihood,
+		QThreat:          in.QThreat,
+		QSeverity:        in.QSeverity,
+		BDUID:            in.BDUID,
 	}
 
 	if err := s.repo.Create(ctx, t); err != nil {
 		return nil, err
 	}
-
 	return t, nil
 }
 
@@ -81,30 +99,22 @@ func (s *service) Update(ctx context.Context, id int64, in UpdateThreatInput) (*
 		return nil, fmt.Errorf("threat not found")
 	}
 
-	if in.Name == "" {
-		return nil, fmt.Errorf("name is required")
-	}
-	if in.BaseLikelihood < 1 || in.BaseLikelihood > 5 {
-		return nil, fmt.Errorf("base_likelihood must be between 1 and 5")
-	}
-
-	st := domain.ThreatSourceType(in.SourceType)
-	switch st {
-	case domain.ThreatSourceExternal, domain.ThreatSourceInternal, domain.ThreatSourceThirdParty:
-	default:
-		return nil, fmt.Errorf("invalid source_type (must be external|internal|third_party)")
+	st, err := validateInput(in)
+	if err != nil {
+		return nil, err
 	}
 
 	t.Name = in.Name
 	t.ThreatCategoryID = in.ThreatCategoryID
 	t.SourceType = st
 	t.Description = in.Description
-	t.BaseLikelihood = in.BaseLikelihood
+	t.QThreat = in.QThreat
+	t.QSeverity = in.QSeverity
+	t.BDUID = in.BDUID
 
 	if err := s.repo.Update(ctx, t); err != nil {
 		return nil, err
 	}
-
 	return t, nil
 }
 

@@ -16,7 +16,12 @@ func TestThreatRepository_CreateAndGet(t *testing.T) {
 	repo := NewThreatRepository(pool)
 	ctx := context.Background()
 
-	threat := &domain.Threat{Name: "SQL Injection", SourceType: domain.ThreatSourceExternal, BaseLikelihood: 4}
+	threat := &domain.Threat{
+		Name:       "SQL Injection",
+		SourceType: domain.ThreatSourceExternal,
+		QThreat:    0.7,
+		QSeverity:  0.8,
+	}
 	require.NoError(t, repo.Create(ctx, threat))
 	assert.Greater(t, threat.ID, int64(0))
 
@@ -24,6 +29,8 @@ func TestThreatRepository_CreateAndGet(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, found)
 	assert.Equal(t, "SQL Injection", found.Name)
+	assert.InDelta(t, 0.7, found.QThreat, 1e-6)
+	assert.InDelta(t, 0.8, found.QSeverity, 1e-6)
 }
 
 func TestThreatRepository_List(t *testing.T) {
@@ -32,8 +39,8 @@ func TestThreatRepository_List(t *testing.T) {
 	repo := NewThreatRepository(pool)
 	ctx := context.Background()
 
-	_ = repo.Create(ctx, &domain.Threat{Name: "T1", SourceType: domain.ThreatSourceExternal, BaseLikelihood: 3})
-	_ = repo.Create(ctx, &domain.Threat{Name: "T2", SourceType: domain.ThreatSourceInternal, BaseLikelihood: 2})
+	_ = repo.Create(ctx, &domain.Threat{Name: "T1", SourceType: domain.ThreatSourceExternal, QThreat: 0.5, QSeverity: 0.5})
+	_ = repo.Create(ctx, &domain.Threat{Name: "T2", SourceType: domain.ThreatSourceInternal, QThreat: 0.3, QSeverity: 0.4})
 
 	threats, err := repo.List(ctx, ThreatFilter{Limit: 10, Offset: 0})
 	require.NoError(t, err)
@@ -46,7 +53,7 @@ func TestThreatRepository_Delete(t *testing.T) {
 	repo := NewThreatRepository(pool)
 	ctx := context.Background()
 
-	threat := &domain.Threat{Name: "ToDelete", SourceType: domain.ThreatSourceExternal, BaseLikelihood: 1}
+	threat := &domain.Threat{Name: "ToDelete", SourceType: domain.ThreatSourceExternal, QThreat: 0.1, QSeverity: 0.1}
 	_ = repo.Create(ctx, threat)
 	require.NoError(t, repo.Delete(ctx, threat.ID))
 

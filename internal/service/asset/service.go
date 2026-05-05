@@ -25,11 +25,9 @@ func NewService(repo repository.AssetRepository) Service {
 	return &service{repo: repo}
 }
 
-// CreateAssetInput is the API surface for creating/updating an asset under the
-// PTSZI W-model. Only fields that have meaning in the W formula or are needed
-// for UI/labelling are accepted. Legacy fields (kii_category, data_category,
-// protection_level, C/I/A, business_criticality, …) are no longer in the
-// request body — they are scheduled for removal from the database in Stage 2.
+// CreateAssetInput is the API surface for creating/updating an asset under
+// the PTSZI W-model. Only fields that have meaning in the W formula or are
+// needed for UI/labelling are accepted.
 type CreateAssetInput struct {
 	Name        string                 `json:"name"`
 	AssetTypeID *int16                 `json:"asset_type_id"`
@@ -61,23 +59,14 @@ func (s *service) Create(ctx context.Context, in CreateAssetInput) (*domain.Asse
 		tagsBytes = b
 	}
 
-	// Database still has NOT NULL CHECK (1..5) constraints on the legacy
-	// criticality/CIA columns; populate sane defaults so inserts succeed
-	// until Stage 2 drops these columns.
-	const legacyDefault int16 = 3
-
 	asset := &domain.Asset{
-		Name:                in.Name,
-		AssetTypeID:         in.AssetTypeID,
-		Owner:               in.Owner,
-		Description:         in.Description,
-		BusinessCriticality: legacyDefault,
-		Confidentiality:     legacyDefault,
-		Integrity:           legacyDefault,
-		Availability:        legacyDefault,
-		Environment:         env,
-		IsIsolated:          in.IsIsolated,
-		Tags:                tagsBytes,
+		Name:        in.Name,
+		AssetTypeID: in.AssetTypeID,
+		Owner:       in.Owner,
+		Description: in.Description,
+		Environment: env,
+		IsIsolated:  in.IsIsolated,
+		Tags:        tagsBytes,
 	}
 
 	if err := s.repo.Create(ctx, asset); err != nil {

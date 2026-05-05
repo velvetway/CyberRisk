@@ -104,7 +104,6 @@ func truncateAll(t *testing.T, pool *pgxpool.Pool) {
 	t.Helper()
 	ctx := context.Background()
 	tables := []string{
-		"risk_scenario_recommendations", "recommendation_templates", "risk_scenarios",
 		"asset_controls", "controls", "asset_vulnerabilities", "asset_software",
 		"software_catalog", "software_categories", "vulnerabilities", "threats", "assets", "users",
 	}

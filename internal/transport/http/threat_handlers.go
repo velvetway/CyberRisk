@@ -32,7 +32,9 @@ type ThreatResponse struct {
 	ThreatCategoryID *int16  `json:"threat_category_id,omitempty"`
 	SourceType       string  `json:"source_type"`
 	Description      *string `json:"description,omitempty"`
-	BaseLikelihood   int16   `json:"base_likelihood"`
+	QThreat          float64 `json:"q_threat"`
+	QSeverity        float64 `json:"q_severity"`
+	BDUID            *string `json:"bdu_id,omitempty"`
 	CreatedAt        string  `json:"created_at"`
 	UpdatedAt        string  `json:"updated_at"`
 }
@@ -44,7 +46,9 @@ func threatToResponse(t *domain.Threat) ThreatResponse {
 		ThreatCategoryID: t.ThreatCategoryID,
 		SourceType:       string(t.SourceType),
 		Description:      t.Description,
-		BaseLikelihood:   t.BaseLikelihood,
+		QThreat:          t.QThreat,
+		QSeverity:        t.QSeverity,
+		BDUID:            t.BDUID,
 		CreatedAt:        t.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:        t.UpdatedAt.Format(time.RFC3339),
 	}
