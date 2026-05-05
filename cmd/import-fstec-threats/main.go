@@ -76,9 +76,10 @@ func main() {
 Import complete:
   threats inserted/updated:   %d
   source links written:       %d
+  VL-category links written:  %d
   rows with derived types:    %d
   rows without type matches:  %d
-`, stats.threatsUpserted, stats.sourceLinks, stats.withTypes, stats.withoutTypes)
+`, stats.threatsUpserted, stats.sourceLinks, stats.vlLinks, stats.withTypes, stats.withoutTypes)
 }
 
 func loadSource(ctx context.Context, source string) ([]byte, error) {
@@ -121,6 +122,7 @@ type threatRow struct {
 	Source       sourceClassification
 	AssetTypes   []string // names from asset_types
 	CategoryName string   // name from threat_categories
+	VLCodes      []string // VL1..VL6 codes from vl_categories
 }
 
 func parseThreats(xlsxBytes []byte) ([]threatRow, error) {
@@ -165,6 +167,7 @@ func parseThreats(xlsxBytes []byte) ([]threatRow, error) {
 		row.Source = classifySource(row.SourceText)
 		row.AssetTypes = deriveAssetTypeNames(row.TargetText)
 		row.CategoryName = matchCategoryName(row.Name, row.Description)
+		row.VLCodes = deriveVLCategoryCodes(row.Name, row.Description, row.TargetText)
 
 		// fix the BDUID padding for IDs > 99 (we want УБИ.100, not УБИ.10 0)
 		row.BDUID = normalizeBDUID(strings.TrimSpace(safeCell(r, 0)))

@@ -22,9 +22,10 @@ export interface ControlCoverage {
 }
 
 export interface VLNode {
-  vulnerability_id: number;
+  category_id: number;
+  code: string; // VL1..VL6
   name: string;
-  severity: number;
+  description?: string;
   coverage_controls: ControlCoverage[];
   uncovered: boolean;
 }

@@ -23,7 +23,7 @@ describe('buildSankeyGraph', () => {
   test('one VL with one half-coverage control: per-VL flow conserves', () => {
     const path = minimalPath({
       vulnerable_links: [{
-        vulnerability_id: 1, name: 'CVE-1', severity: 5,
+        category_id: 1, code: 'VL1', name: 'Нештатное ПО',
         coverage_controls: [{ id: 100, name: 'WAF', coverage: 0.5 }],
         uncovered: false,
       }],
@@ -37,7 +37,7 @@ describe('buildSankeyGraph', () => {
   test('two controls with combined coverage > 1 are clamped, all flow blocked', () => {
     const path = minimalPath({
       vulnerable_links: [{
-        vulnerability_id: 1, name: 'CVE', severity: 1,
+        category_id: 1, code: 'VL1', name: 'Нештатное ПО',
         coverage_controls: [
           { id: 1, name: 'A', coverage: 0.7 },
           { id: 2, name: 'B', coverage: 0.6 },
@@ -55,7 +55,7 @@ describe('buildSankeyGraph', () => {
   test('VL with no controls — all flow goes to DA', () => {
     const path = minimalPath({
       vulnerable_links: [{
-        vulnerability_id: 1, name: 'CVE', severity: 1,
+        category_id: 1, code: 'VL1', name: 'Нештатное ПО',
         coverage_controls: [], uncovered: true,
       }],
     });
@@ -69,7 +69,7 @@ describe('buildSankeyGraph', () => {
   test('disabled control does not produce VL->C edges; flow shifts to DA', () => {
     const path = minimalPath({
       vulnerable_links: [{
-        vulnerability_id: 1, name: 'CVE', severity: 1,
+        category_id: 1, code: 'VL1', name: 'Нештатное ПО',
         coverage_controls: [{ id: 1, name: 'A', coverage: 1.0 }],
         uncovered: false,
       }],
@@ -94,33 +94,20 @@ describe('buildSankeyGraph', () => {
     expect(stIn[1]).toBeCloseTo(0.5, 9);
   });
 
-  test('ST->VL split by relative severity sums to 1', () => {
+  test('ST->VL: равномерное распределение по VL-категориям', () => {
     const path = minimalPath({
       vulnerable_links: [
-        { vulnerability_id: 1, name: 'V1', severity: 8, coverage_controls: [], uncovered: true },
-        { vulnerability_id: 2, name: 'V2', severity: 2, coverage_controls: [], uncovered: true },
+        { category_id: 1, code: 'VL1', name: 'V1', coverage_controls: [], uncovered: true },
+        { category_id: 2, code: 'VL2', name: 'V2', coverage_controls: [], uncovered: true },
       ],
     });
     const g = buildSankeyGraph(path);
     const total = g.links.filter(l => l.kind === 'ST->VL').reduce((a, l) => a + l.value, 0);
     expect(total).toBeCloseTo(1, 9);
     const v1 = g.links.find(l => l.target === 'VL1')!;
-    expect(v1.value).toBeCloseTo(0.8, 9);
-  });
-
-  test('negative severity values are clamped — no negative flow', () => {
-    const path = minimalPath({
-      vulnerable_links: [
-        { vulnerability_id: 1, name: 'V1', severity: -5, coverage_controls: [], uncovered: true },
-        { vulnerability_id: 2, name: 'V2', severity: 10, coverage_controls: [], uncovered: true },
-      ],
-    });
-    const g = buildSankeyGraph(path);
-    for (const l of g.links) {
-      expect(l.value).toBeGreaterThanOrEqual(0);
-    }
-    const total = g.links.filter(l => l.kind === 'ST->VL').reduce((a, l) => a + l.value, 0);
-    expect(total).toBeCloseTo(1, 9);
+    const v2 = g.links.find(l => l.target === 'VL2')!;
+    expect(v1.value).toBeCloseTo(0.5, 9);
+    expect(v2.value).toBeCloseTo(0.5, 9);
   });
 });
 
@@ -130,7 +117,7 @@ describe('recomputeW', () => {
       q_threat: 0.6, q_severity: 0.4, q_reaction: 1.0, z: 1.0,
       w: (0.6 + 0.4 + 0) / 3,
       vulnerable_links: [{
-        vulnerability_id: 1, name: 'V', severity: 1,
+        category_id: 1, code: 'VL1', name: 'V',
         coverage_controls: [{ id: 1, name: 'A', coverage: 1.0 }],
         uncovered: false,
       }],
@@ -145,7 +132,7 @@ describe('recomputeW', () => {
     const path = minimalPath({
       q_threat: 0.6, q_severity: 0.4, q_reaction: 1.0, z: 1.0, w: (0.6 + 0.4) / 3,
       vulnerable_links: [{
-        vulnerability_id: 1, name: 'V', severity: 1,
+        category_id: 1, code: 'VL1', name: 'V',
         coverage_controls: [{ id: 1, name: 'A', coverage: 1.0 }],
         uncovered: false,
       }],
@@ -160,7 +147,7 @@ describe('recomputeW', () => {
     const path = minimalPath({
       q_threat: 0.5, q_severity: 0.5, q_reaction: 1.0, z: 1.0, w: (0.5 + 0.5) / 3,
       vulnerable_links: [{
-        vulnerability_id: 1, name: 'V', severity: 1,
+        category_id: 1, code: 'VL1', name: 'V',
         coverage_controls: [
           { id: 1, name: 'A', coverage: 0.4 },
           { id: 2, name: 'B', coverage: 0.6 },

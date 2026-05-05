@@ -26,12 +26,14 @@ type ThreatRef struct {
 	BDUID string `json:"bdu_id,omitempty"`
 }
 
-// VLNode — уязвимое звено плюс средства защиты, закрывающие его на конкретном активе.
+// VLNode — VL-категория из диплома (всего 6 шт), плюс контроли,
+// закрывающие её на конкретном активе.
 type VLNode struct {
-	VulnerabilityID  int64             `json:"vulnerability_id"`
+	CategoryID       int16             `json:"category_id"`
+	Code             string            `json:"code"` // VL1..VL6
 	Name             string            `json:"name"`
-	Severity         int               `json:"severity"`           // 1..10
-	CoverageControls []ControlCoverage `json:"coverage_controls"`  // controls present on this asset that cover this VL
+	Description      string            `json:"description,omitempty"`
+	CoverageControls []ControlCoverage `json:"coverage_controls"`
 	Uncovered        bool              `json:"uncovered"`
 }
 
@@ -40,7 +42,7 @@ type VLNode struct {
 type ControlCoverage struct {
 	ID       int64   `json:"id"`
 	Name     string  `json:"name"`
-	Coverage float64 `json:"coverage"` // 0..1 from vulnerability_controls.coverage
+	Coverage float64 `json:"coverage"` // 0..1 from vl_category_controls.coverage
 }
 
 // AssetAggregate — сводные метрики по всем угрозам одного актива.

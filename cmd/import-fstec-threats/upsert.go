@@ -12,6 +12,7 @@ import (
 type importStats struct {
 	threatsUpserted int
 	sourceLinks     int
+	vlLinks         int
 	withTypes       int
 	withoutTypes    int
 }
@@ -42,6 +43,10 @@ func upsertAll(ctx context.Context, pool *pgxpool.Pool, rows []threatRow) (impor
 	tsources, err := loadIDMap(ctx, tx, `SELECT id, code FROM threat_sources`)
 	if err != nil {
 		return stats, fmt.Errorf("load threat_sources: %w", err)
+	}
+	vlcats, err := loadIDMap(ctx, tx, `SELECT id, code FROM vl_categories`)
+	if err != nil {
+		return stats, fmt.Errorf("load vl_categories: %w", err)
 	}
 
 	const upsertSQL = `
@@ -135,6 +140,24 @@ RETURNING id`
 				return stats, fmt.Errorf("link source %s → %d: %w", code, threatID, err)
 			}
 			stats.sourceLinks++
+		}
+
+		// Rebuild threat_vulnerable_links edges for this threat (ST → VL_category).
+		if _, err := tx.Exec(ctx, `DELETE FROM threat_vulnerable_links WHERE threat_id = $1`, threatID); err != nil {
+			return stats, err
+		}
+		for _, code := range r.VLCodes {
+			vid, ok := vlcats[code]
+			if !ok {
+				continue
+			}
+			if _, err := tx.Exec(ctx,
+				`INSERT INTO threat_vulnerable_links (threat_id, vl_category_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+				threatID, int16(vid),
+			); err != nil {
+				return stats, fmt.Errorf("link VL %s → %d: %w", code, threatID, err)
+			}
+			stats.vlLinks++
 		}
 	}
 

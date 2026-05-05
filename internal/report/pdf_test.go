@@ -19,16 +19,18 @@ func TestGenerateAttackPathPDF_ProducesValidPDF(t *testing.T) {
 		},
 		VulnerableLinks: []domain.VLNode{
 			{
-				VulnerabilityID: 11,
-				Name:            "Открытые ОС / отсутствие средств защиты ЛВС",
+				CategoryID: 6,
+				Code:       "VL6",
+				Name:       "Открытые ОС / отсутствие средств защиты ЛВС",
 				CoverageControls: []domain.ControlCoverage{
 					{ID: 2, Name: "Межсетевой экран", Coverage: 1.0},
 				},
 			},
 			{
-				VulnerabilityID: 12,
-				Name:            "Допустимость установки не декларируемого ПО",
-				Uncovered:       true,
+				CategoryID: 3,
+				Code:       "VL3",
+				Name:       "Допустимость установки не декларируемого ПО",
+				Uncovered:  true,
 			},
 		},
 		DestructiveActions: []domain.DestructiveAction{
@@ -72,7 +74,7 @@ func TestGenerateAssetReportPDF_HappyPath(t *testing.T) {
 				W:         0.55,
 				Level:     "high",
 				VulnerableLinks: []domain.VLNode{
-					{VulnerabilityID: 12, Name: "VL без покрытия", Uncovered: true},
+					{CategoryID: 3, Code: "VL3", Name: "VL без покрытия", Uncovered: true},
 				},
 			},
 		},

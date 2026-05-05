@@ -10,7 +10,6 @@ export interface SankeyNodeData {
   meta?: {
     coverage?: number;
     disabled?: boolean;
-    severity?: number;
     uncovered?: boolean;
     code?: string;
   };
@@ -61,13 +60,13 @@ export function buildSankeyGraph(
     meta: { code: path.threat.bdu_id },
   });
 
-  // VL nodes
+  // VL nodes (категории VL1..VL6 из диплома)
   for (const vl of path.vulnerable_links) {
     nodes.push({
-      id: `VL${vl.vulnerability_id}`,
+      id: `VL${vl.category_id}`,
       kind: 'VL',
       label: vl.name,
-      meta: { severity: vl.severity, uncovered: vl.uncovered },
+      meta: { uncovered: vl.uncovered, code: vl.code },
     });
   }
 
@@ -100,19 +99,16 @@ export function buildSankeyGraph(
     }
   }
 
-  // ST → VL: по относительной severity (сумма = 1).
-  // severity клампим к минимуму 1 — отрицательные значения недопустимы для flow,
-  // нулевые попадут под равномерный fallback ниже.
-  const safeSev = (s: number) => Math.max(1, s);
-  const totalSev = path.vulnerable_links.reduce((a, v) => a + safeSev(v.severity), 0);
-  if (path.vulnerable_links.length > 0) {
+  // ST → VL: равномерное распределение по VL-категориям. У категорий нет
+  // «severity» — они одинаково применимы; вес угрозы распределяется поровну.
+  const vlCount = path.vulnerable_links.length;
+  if (vlCount > 0) {
+    const perVL = 1 / vlCount;
     for (const vl of path.vulnerable_links) {
-      const sev = safeSev(vl.severity);
-      const value = totalSev > 0 ? sev / totalSev : 1 / path.vulnerable_links.length;
       links.push({
         source: 'ST',
-        target: `VL${vl.vulnerability_id}`,
-        value,
+        target: `VL${vl.category_id}`,
+        value: perVL,
         kind: 'ST->VL',
       });
     }
@@ -120,9 +116,7 @@ export function buildSankeyGraph(
 
   // Per-VL: VL → C (только enabled), VL → DA (passthrough)
   for (const vl of path.vulnerable_links) {
-    const inflow = totalSev > 0
-      ? safeSev(vl.severity) / totalSev
-      : 1 / Math.max(1, path.vulnerable_links.length);
+    const inflow = vlCount > 0 ? 1 / vlCount : 0;
     const enabled = vl.coverage_controls.filter(c => !disabledControlIds.has(c.id));
     const sumC = enabled.reduce((a, c) => a + c.coverage, 0);
     const cov = Math.min(1, sumC);
@@ -133,7 +127,7 @@ export function buildSankeyGraph(
         const value = share * cov * inflow;
         if (value > 0) {
           links.push({
-            source: `VL${vl.vulnerability_id}`,
+            source: `VL${vl.category_id}`,
             target: `C${c.id}`,
             value,
             kind: 'VL->C',
@@ -147,7 +141,7 @@ export function buildSankeyGraph(
       const perDa = passthrough / path.destructive_actions.length;
       for (const da of path.destructive_actions) {
         links.push({
-          source: `VL${vl.vulnerability_id}`,
+          source: `VL${vl.category_id}`,
           target: `DA${da.id}`,
           value: perDa,
           kind: 'VL->DA',

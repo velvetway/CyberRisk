@@ -138,6 +138,64 @@ func matchCategoryName(threatName, threatDesc string) string {
 }
 
 // =====================================================================
+// VL-категории derivation: threat name + description + target → set of VL codes
+//
+// VL1..VL6 codes из vl_categories (см. migrations/034_vl_categories.up.sql).
+// Возвращаем коды (а не id), потому что id зависит от порядка вставки в БД,
+// а коды стабильны.
+//
+// Если ни одно правило не сработало, дефолт — VL2 («устаревшее ПО / версии
+// с уязвимостями»). Это самая общая категория: любая угроза, эксплуатирующая
+// конкретный CVE, фактически проходит через VL2.
+// =====================================================================
+
+type vlRule struct {
+	pattern *regexp.Regexp
+	codes   []string
+}
+
+var vlRules = []vlRule{
+	// VL1 — нештатное доп. ПО (драйверы, утилиты, неавторизованные скрипты)
+	{regexp.MustCompile(`(?i)драйвер|утилит|скрипт|неавторизован|неподписан|инсталляц|устанавл`), []string{"VL1"}},
+	// VL2 — устаревшие версии ПО / эксплуатация уязвимостей
+	{regexp.MustCompile(`(?i)устарев|outdated|необновлен|уязвим|exploit|patch|CVE|БДУ`), []string{"VL2"}},
+	// VL3 — недекларируемое ПО / закладки / backdoor
+	{regexp.MustCompile(`(?i)недекларир|backdoor|закладк|trojan|шпион|spyware|программ.{0,5}\s*заклад`), []string{"VL3"}},
+	// VL4 — обход админом, повышение привилегий, misconfiguration
+	{regexp.MustCompile(`(?i)повышен.{0,3}\s*привилег|обход\s*(полит|правил)|misconfig|администратор.{0,5}\s*(обход|нарушен)|превышен.{0,3}\s*полномоч`), []string{"VL4"}},
+	// VL5 — съёмные носители
+	{regexp.MustCompile(`(?i)съём.{0,5}\s*носител|флеш|USB|removable|накопител|внешн.{0,3}\s*носител`), []string{"VL5"}},
+	// VL6 — открытые ОС / отсутствие защиты ЛВС / сетевые атаки
+	{regexp.MustCompile(`(?i)сетев.{0,3}\s*(атак|трафик|сегмент)|перехват\s*(пакет|данн|информац)|сканирован|открыт.{0,5}\s*порт|untrusted\s*network|отсутстви.{0,3}\s*(МСЭ|firewall|сегмент)|DDoS`), []string{"VL6"}},
+	// Доп. ловушки: вредонос/вирус — обычно проходит через VL1 + VL2
+	{regexp.MustCompile(`(?i)вирус|вредонос|malware|червь`), []string{"VL1", "VL2"}},
+	// Социальная инженерия — попадает на VL4 (обход политик пользователем)
+	{regexp.MustCompile(`(?i)фишинг|phishing|социальн.{0,5}\s*инжен`), []string{"VL4"}},
+}
+
+// deriveVLCategoryCodes возвращает дедуплицированный набор VL-кодов,
+// сработавших на тексте угрозы. Пустой результат → дефолт VL2.
+func deriveVLCategoryCodes(threatName, threatDesc, target string) []string {
+	combined := threatName + "\n" + threatDesc + "\n" + target
+	seen := map[string]bool{}
+	var out []string
+	for _, r := range vlRules {
+		if r.pattern.MatchString(combined) {
+			for _, code := range r.codes {
+				if !seen[code] {
+					seen[code] = true
+					out = append(out, code)
+				}
+			}
+		}
+	}
+	if len(out) == 0 {
+		out = []string{"VL2"}
+	}
+	return out
+}
+
+// =====================================================================
 // Q-параметры derivation
 // =====================================================================
 

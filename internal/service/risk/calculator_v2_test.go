@@ -70,8 +70,8 @@ func TestLevelFromW(t *testing.T) {
 
 func TestQReactionFromVLs_AllCovered(t *testing.T) {
 	vls := []domain.VLNode{
-		{VulnerabilityID: 1, CoverageControls: []domain.ControlCoverage{{Coverage: 1.0}}},
-		{VulnerabilityID: 2, CoverageControls: []domain.ControlCoverage{{Coverage: 1.0}}},
+		{CategoryID: 1, Code: "VL1", CoverageControls: []domain.ControlCoverage{{Coverage: 1.0}}},
+		{CategoryID: 2, Code: "VL2", CoverageControls: []domain.ControlCoverage{{Coverage: 1.0}}},
 	}
 	if got := QReactionFromVLs(vls); !approxEq(got, 1.0) {
 		t.Fatalf("expected 1.0, got %v", got)
@@ -80,8 +80,8 @@ func TestQReactionFromVLs_AllCovered(t *testing.T) {
 
 func TestQReactionFromVLs_HalfCovered(t *testing.T) {
 	vls := []domain.VLNode{
-		{VulnerabilityID: 1, CoverageControls: []domain.ControlCoverage{{Coverage: 1.0}}},
-		{VulnerabilityID: 2, CoverageControls: nil},
+		{CategoryID: 1, Code: "VL1", CoverageControls: []domain.ControlCoverage{{Coverage: 1.0}}},
+		{CategoryID: 2, Code: "VL2", CoverageControls: nil},
 	}
 	if got := QReactionFromVLs(vls); !approxEq(got, 0.5) {
 		t.Fatalf("expected 0.5, got %v", got)
@@ -91,7 +91,7 @@ func TestQReactionFromVLs_HalfCovered(t *testing.T) {
 func TestQReactionFromVLs_ZeroCoverageIgnored(t *testing.T) {
 	// A control with coverage=0 does NOT count as "covering"
 	vls := []domain.VLNode{
-		{VulnerabilityID: 1, CoverageControls: []domain.ControlCoverage{{Coverage: 0.0}}},
+		{CategoryID: 1, Code: "VL1", CoverageControls: []domain.ControlCoverage{{Coverage: 0.0}}},
 	}
 	if got := QReactionFromVLs(vls); !approxEq(got, 0.0) {
 		t.Fatalf("expected 0.0, got %v", got)

@@ -254,18 +254,19 @@ func renderChain(pdf *gofpdf.Fpdf, path *domain.AttackPath) {
 func renderRecommendations(pdf *gofpdf.Fpdf, paths []domain.AttackPath) {
 	type rec struct {
 		vlName  string
+		vlCode  string
 		threats map[string]struct{}
 	}
-	uncovered := map[int64]*rec{}
+	uncovered := map[int16]*rec{}
 	for _, p := range paths {
 		for _, vl := range p.VulnerableLinks {
 			if !vl.Uncovered && len(vl.CoverageControls) > 0 {
 				continue
 			}
-			r, ok := uncovered[vl.VulnerabilityID]
+			r, ok := uncovered[vl.CategoryID]
 			if !ok {
-				r = &rec{vlName: vl.Name, threats: map[string]struct{}{}}
-				uncovered[vl.VulnerabilityID] = r
+				r = &rec{vlName: vl.Name, vlCode: vl.Code, threats: map[string]struct{}{}}
+				uncovered[vl.CategoryID] = r
 			}
 			r.threats[p.Threat.Name] = struct{}{}
 		}
@@ -293,11 +294,15 @@ func renderRecommendations(pdf *gofpdf.Fpdf, paths []domain.AttackPath) {
 		}
 		pdf.SetFont("NotoSans", "B", 10)
 		pdf.SetTextColor(20, 20, 20)
-		pdf.MultiCell(0, 6, fmt.Sprintf("%d. %s", idx, r.vlName), "", "L", false)
+		title := r.vlName
+		if r.vlCode != "" {
+			title = fmt.Sprintf("%s — %s", r.vlCode, r.vlName)
+		}
+		pdf.MultiCell(0, 6, fmt.Sprintf("%d. %s", idx, title), "", "L", false)
 		pdf.SetFont("NotoSans", "", 9)
 		pdf.SetTextColor(110, 110, 110)
 		pdf.MultiCell(0, 4, "  Затрагивает угрозы: "+strings.Join(threats, "; "), "", "L", false)
-		pdf.MultiCell(0, 4, "  Действие: внедрить хотя бы один контроль из vulnerability_controls для этого VL на активе.", "", "L", false)
+		pdf.MultiCell(0, 4, "  Действие: внедрить хотя бы один контроль из vl_category_controls для этой VL-категории на активе.", "", "L", false)
 		pdf.Ln(2)
 		idx++
 	}
