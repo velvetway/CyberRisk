@@ -73,3 +73,6 @@ reports/
 
 # Superpowers brainstorm session artifacts
 .superpowers/
+
+# BDU FSTEC snapshot — downloaded by cmd/import-bdu-snapshot, ~470 MB
+/data/
