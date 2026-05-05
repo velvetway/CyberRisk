@@ -52,9 +52,16 @@ import (
 var httpClient = &http.Client{Timeout: 60 * time.Second}
 
 const (
-	defaultBaseURL  = "https://xn--80aajzhsbhw.xn--p1ai" // каталогпо.рф (punycode)
-	defaultPageSize = 100
-	userAgent       = "cyberrisk-import-minreestr/0.1 (+https://github.com/velvetway/CyberRisk)"
+	defaultBaseURL = "https://xn--80aajzhsbhw.xn--p1ai" // каталогпо.рф (punycode)
+	// Шлюз перед API режет HTTP/2-стримы, если Content-Length превышает
+	// ~115 KB: первые пакеты приходят, потом стрим закрывается с
+	// INTERNAL_ERROR, JSON оказывается truncated. Лимит=30 даёт ~98 KB
+	// и стабильно проходит; 35 ещё ок, 40 уже падает.
+	defaultPageSize = 30
+	maxPageSize     = 35
+	maxRetries      = 5
+	retryBaseDelay  = time.Second
+	userAgent       = "cyberrisk-import-minreestr/0.2 (+https://github.com/velvetway/CyberRisk)"
 )
 
 func main() {
@@ -73,8 +80,13 @@ func main() {
 	if *pageSize < 1 || *pageSize > 100 {
 		log.Fatal("--page-size must be 1..100")
 	}
+	if *pageSize > maxPageSize {
+		log.Printf("warn: --page-size=%d > %d (gateway truncates HTTP/2 streams ~115KB); clamping to %d",
+			*pageSize, maxPageSize, maxPageSize)
+		*pageSize = maxPageSize
+	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Minute)
 	defer cancel()
 
 	var pool *pgxpool.Pool
@@ -111,10 +123,24 @@ func main() {
 
 	stats := importStats{}
 	page := 1
+	totalReported := 0
 	for {
-		items, total, err := fetchPage(ctx, *baseURL, page, *pageSize)
+		items, total, err := fetchPageWithRetry(ctx, *baseURL, page, *pageSize)
 		if err != nil {
-			log.Fatalf("fetch page %d: %v", page, err)
+			// Не валим процесс — продолжаем со следующей страницы. Без
+			// этого один сетевой сбой стоил бы потери всего хвоста (как
+			// в первом запуске, где из 26 094 импортнулось 3 001).
+			stats.failedPages++
+			log.Printf("page %d: skipped after retries: %v", page, err)
+			if (*maxPages > 0 && page >= *maxPages) ||
+				(totalReported > 0 && page*(*pageSize) >= totalReported) {
+				break
+			}
+			page++
+			continue
+		}
+		if total > 0 {
+			totalReported = total
 		}
 		if len(items) == 0 {
 			break
@@ -124,6 +150,7 @@ func main() {
 
 		if !*dryRun {
 			if err := upsertBatch(ctx, pool, items, categoryByName, &stats); err != nil {
+				// upsert-ошибки = проблема в БД, тут уже надо падать
 				log.Fatalf("upsert page %d: %v", page, err)
 			}
 		}
@@ -139,7 +166,11 @@ Import complete:
   rows upserted:           %d
   rows skipped (dup):      %d
   rows with category:      %d
-`, stats.upserted, stats.skipped, stats.withCategory)
+  pages failed (skipped):  %d
+`, stats.upserted, stats.skipped, stats.withCategory, stats.failedPages)
+	if stats.failedPages > 0 {
+		os.Exit(2)
+	}
 }
 
 // =====================================================================
@@ -163,6 +194,34 @@ type apiProduct struct {
 type apiResponse struct {
 	Items []apiProduct `json:"items"`
 	Total int          `json:"total"`
+}
+
+// fetchPageWithRetry оборачивает fetchPage экспоненциальным backoff'ом.
+// Шлюз каталогпо.рф периодически рвёт HTTP/2-стримы (INTERNAL_ERROR) даже
+// при limit=30; повторный запрос обычно проходит. Между попытками — 1s, 2s,
+// 4s, 8s, 16s; ctx.Done прерывает цикл досрочно.
+func fetchPageWithRetry(ctx context.Context, base string, page, limit int) ([]apiProduct, int, error) {
+	var lastErr error
+	delay := retryBaseDelay
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		items, total, err := fetchPage(ctx, base, page, limit)
+		if err == nil {
+			return items, total, nil
+		}
+		lastErr = err
+		if attempt == maxRetries {
+			break
+		}
+		log.Printf("page %d attempt %d/%d failed: %v; retrying in %s",
+			page, attempt, maxRetries, err, delay)
+		select {
+		case <-ctx.Done():
+			return nil, 0, ctx.Err()
+		case <-time.After(delay):
+		}
+		delay *= 2
+	}
+	return nil, 0, fmt.Errorf("after %d attempts: %w", maxRetries, lastErr)
 }
 
 func fetchPage(ctx context.Context, base string, page, limit int) ([]apiProduct, int, error) {
@@ -206,6 +265,7 @@ type importStats struct {
 	upserted     int
 	skipped      int
 	withCategory int
+	failedPages  int
 }
 
 const upsertSQL = `
