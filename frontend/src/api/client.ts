@@ -2,8 +2,6 @@
 import {
     Asset,
     Threat,
-    RiskPreviewRequest,
-    RiskPreviewResponse,
     RiskOverviewPoint,
     Software,
     SoftwareCategory,
@@ -163,16 +161,9 @@ export const api = {
         return request<Threat[]>("/api/threats");
     },
 
-    // Risk
+    // Risk (PTSZI W-model)
     getRiskOverview(): Promise<RiskOverviewPoint[]> {
         return request<RiskOverviewPoint[]>("/api/risk/overview");
-    },
-
-    previewRisk(body: RiskPreviewRequest): Promise<RiskPreviewResponse> {
-        return request<RiskPreviewResponse>("/api/risk/preview", {
-            method: "POST",
-            body: JSON.stringify(body),
-        });
     },
 
     // Software catalog

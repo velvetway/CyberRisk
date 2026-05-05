@@ -11,10 +11,7 @@ import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { AssetsPage } from "./pages/AssetsPage";
 import { AssetFormPage } from "./pages/AssetFormPage";
-import { AssetRiskProfilePage } from "./pages/AssetRiskProfilePage";
 import { SoftwareCatalogPage } from "./pages/SoftwareCatalogPage";
-import { RiskPreviewPage } from "./pages/RiskPreviewPage";
-import { RiskMapPage } from "./pages/RiskMapPage";
 import { RiskGraphPage } from "./pages/RiskGraphPage";
 import { DashboardPage } from "./pages/DashboardPage";
 
@@ -35,11 +32,9 @@ function loadState(): PersistedState {
 
 const BC_MAP: Record<string, string[]> = {
   dashboard:  ['Платформа', 'Обзор'],
-  riskmap:    ['Платформа', 'Карта рисков'],
   graph:      ['Платформа', 'Граф атаки'],
   assets:     ['Платформа', 'Реестр активов'],
   software:   ['Справочники', 'ПО (Минцифры)'],
-  simulator:  ['Платформа', 'Симулятор риска'],
   threats:    ['Справочники', 'Каталог угроз'],
   vulns:      ['Справочники', 'Уязвимости'],
   reports:    ['Справочники', 'Отчёты'],
@@ -120,10 +115,7 @@ function RoutedApp() {
       <Route path="/assets" element={<LayoutGuard><AssetsPage /></LayoutGuard>} />
       <Route path="/assets/new" element={<LayoutGuard><AssetFormPage /></LayoutGuard>} />
       <Route path="/assets/edit/:id" element={<LayoutGuard><AssetFormPage /></LayoutGuard>} />
-      <Route path="/assets/:id/risks" element={<LayoutGuard><AssetRiskProfilePage /></LayoutGuard>} />
       <Route path="/software" element={<LayoutGuard><SoftwareCatalogPage /></LayoutGuard>} />
-      <Route path="/risk/preview" element={<LayoutGuard><RiskPreviewPage /></LayoutGuard>} />
-      <Route path="/risk/map" element={<LayoutGuard><RiskMapPage /></LayoutGuard>} />
       <Route path="/risk/graph/:assetId" element={<LayoutGuard><RiskGraphPage /></LayoutGuard>} />
       <Route path="*" element={<LayoutGuard><AssetsPage /></LayoutGuard>} />
     </Routes>

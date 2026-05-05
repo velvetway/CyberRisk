@@ -1,45 +1,18 @@
-// Категории данных (152-ФЗ, 187-ФЗ)
-export type DataCategory =
-    | "public"
-    | "internal"
-    | "confidential"
-    | "personal_data"
-    | "personal_data_special"
-    | "personal_data_biometric"
-    | "kii"
-    | "state_secret"
-    | "banking_secret"
-    | "medical_secret"
-    | "commercial_secret";
-
-// Уровень защищённости ПДн (ПП-1119)
-export type ProtectionLevel = "uz1" | "uz2" | "uz3" | "uz4";
-
-// Категория КИИ (187-ФЗ)
-export type KIICategory = "none" | "cat3" | "cat2" | "cat1";
+// Domain types for the PTSZI W-model — see docs/risk-model.md.
+// Legacy fields (КИИ, ПДн, УЗ-1..4, C/I/A, business_criticality, impact_*,
+// base_likelihood, attack_vector, regulatory_factor, …) are intentionally
+// absent — they were dropped in the schema migration that aligned the data
+// model with the thesis.
 
 export interface Asset {
     id: number;
     name: string;
-    type: string;
-    asset_type_id: number;
-    owner: string;
-    description: string;
-    location: string;
-    business_criticality: number;
-    confidentiality: number;
-    integrity: number;
-    availability: number;
+    asset_type_id?: number;
+    owner?: string;
+    description?: string;
     environment: string;
-    tags: Record<string, string>;
-    // Регуляторные поля
-    data_category?: DataCategory;
-    protection_level?: ProtectionLevel;
-    kii_category?: KIICategory;
-    has_personal_data?: boolean;
-    personal_data_volume?: string;
-    has_internet_access?: boolean;
-    is_isolated?: boolean;
+    is_isolated: boolean;
+    tags?: Record<string, unknown>;
     created_at: string;
     updated_at: string;
 }
@@ -47,80 +20,32 @@ export interface Asset {
 export interface Threat {
     id: number;
     name: string;
-    description: string;
-    base_likelihood: number;
-    // БДУ ФСТЭК
+    threat_category_id?: number;
+    source_type: string;
+    description?: string;
+    q_threat: number;   // ∈ [0, 1]
+    q_severity: number; // ∈ [0, 1]
     bdu_id?: string;
-    attack_vector?: string;
-    impact_confidentiality?: boolean;
-    impact_integrity?: boolean;
-    impact_availability?: boolean;
-    source_type?: string;
     created_at: string;
     updated_at: string;
 }
 
-// Рекомендация по снижению риска
-export interface RiskRecommendation {
-    code: string;
-    title: string;
-    description: string;
-    priority: "low" | "medium" | "high";
-    category: string;
-}
-
-// Российское СЗИ
-export interface RussianTool {
-    name: string;
-    vendor: string;
-    description: string;
-    fstec_certified: boolean;
-    fsb_certified: boolean;
-    registry_number: string;
-    protection_class: string;
-    use_case: string;
-}
-
-// Регуляторная рекомендация
-export interface RegulatoryRecommendation extends RiskRecommendation {
-    regulation: string;
-    requirement: string;
-    russian_tools: RussianTool[];
-    deadline: string;
-    penalty: string;
-}
-
-export interface RiskPreviewRequest {
-    asset_id: number;
-    threat_id: number;
-}
-
-export interface RiskPreviewResponse {
-    asset_id: number;
-    threat_id: number;
-    impact: number;
-    likelihood: number;
-    score: number;
-    level: string;
-    regulatory_factor?: number;
-    adjusted_score?: number;
-    recommendations: RiskRecommendation[];
-}
-
+// One row of the global PTSZI risk overview map.
 export interface RiskOverviewPoint {
     asset_id: number;
     asset_name: string;
     threat_id: number;
     threat_name: string;
-    impact: number;
-    likelihood: number;
-    score: number;
+    w: number;
     level: string;
-    regulatory_factor?: number;
-    adjusted_score?: number;
+    q_threat: number;
+    q_severity: number;
+    q_reaction: number;
+    z: number;
 }
 
-// Справочник ПО
+// Software catalog (unchanged).
+
 export interface SoftwareCategory {
     id: number;
     code: string;
@@ -135,18 +60,15 @@ export interface Software {
     version?: string;
     category_id?: number;
     category_name?: string;
-    // Реестр Минцифры
     is_russian: boolean;
     registry_number?: string;
     registry_date?: string;
     registry_url?: string;
-    // ФСТЭК
     fstec_certified: boolean;
     fstec_certificate_num?: string;
     fstec_certificate_date?: string;
     fstec_protection_class?: string;
     fstec_valid_until?: string;
-    // ФСБ
     fsb_certified: boolean;
     fsb_certificate_num?: string;
     fsb_protection_class?: string;
