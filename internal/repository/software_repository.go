@@ -68,8 +68,13 @@ func (r *softwareRepository) GetByID(ctx context.Context, id int64) (*domain.Sof
 	const q = `
 SELECT
     id, name, vendor, version, category_id,
-    is_russian, registry_number, registry_date, registry_url,
-    fstec_certified, fstec_certificate_num, fstec_certificate_date, fstec_protection_class, fstec_valid_until,
+    is_russian, registry_number,
+    registry_date::text,
+    registry_url,
+    fstec_certified, fstec_certificate_num,
+    fstec_certificate_date::text,
+    fstec_protection_class,
+    fstec_valid_until::text,
     fsb_certified, fsb_certificate_num, fsb_protection_class,
     description, website, created_at, updated_at
 FROM software_catalog
@@ -100,8 +105,13 @@ func (r *softwareRepository) List(ctx context.Context, f SoftwareFilter) ([]doma
 	q := `
 SELECT
     id, name, vendor, version, category_id,
-    is_russian, registry_number, registry_date, registry_url,
-    fstec_certified, fstec_certificate_num, fstec_certificate_date, fstec_protection_class, fstec_valid_until,
+    is_russian, registry_number,
+    registry_date::text,
+    registry_url,
+    fstec_certified, fstec_certificate_num,
+    fstec_certificate_date::text,
+    fstec_protection_class,
+    fstec_valid_until::text,
     fsb_certified, fsb_certificate_num, fsb_protection_class,
     description, website, created_at, updated_at
 FROM software_catalog
@@ -225,8 +235,13 @@ SELECT
     asw.id, asw.asset_id, asw.software_id, asw.version, asw.install_date,
     asw.license_type, asw.license_expires, asw.notes, asw.created_at, asw.updated_at,
     sc.id, sc.name, sc.vendor, sc.version, sc.category_id,
-    sc.is_russian, sc.registry_number, sc.registry_date, sc.registry_url,
-    sc.fstec_certified, sc.fstec_certificate_num, sc.fstec_certificate_date, sc.fstec_protection_class, sc.fstec_valid_until,
+    sc.is_russian, sc.registry_number,
+    sc.registry_date::text,
+    sc.registry_url,
+    sc.fstec_certified, sc.fstec_certificate_num,
+    sc.fstec_certificate_date::text,
+    sc.fstec_protection_class,
+    sc.fstec_valid_until::text,
     sc.fsb_certified, sc.fsb_certificate_num, sc.fsb_protection_class,
     sc.description, sc.website, sc.created_at, sc.updated_at
 FROM asset_software AS asw
