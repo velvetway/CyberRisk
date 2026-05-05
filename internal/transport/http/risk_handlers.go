@@ -4,6 +4,7 @@ package http
 import (
 	"strconv"
 
+	"Diplom/internal/report"
 	"Diplom/internal/service/risk"
 
 	"github.com/gofiber/fiber/v2"
@@ -77,4 +78,55 @@ func (h *RiskHandler) listDestructiveActions(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 	return c.JSON(out)
+}
+
+//////////////////// PTSZI PDF REPORTS ////////////////////
+
+// GET /api/risk/report/graph/:asset_id/:threat_id — single attack-path PDF.
+func (h *RiskHandler) attackPathPDF(c *fiber.Ctx) error {
+	assetID, err := strconv.ParseInt(c.Params("asset_id"), 10, 64)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid asset_id"})
+	}
+	threatID, err := strconv.ParseInt(c.Params("threat_id"), 10, 64)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid threat_id"})
+	}
+
+	path, err := h.svc.AssembleAttackPath(c.Context(), assetID, threatID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	pdfBytes, err := report.GenerateAttackPathPDF(path)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	c.Set("Content-Type", "application/pdf")
+	c.Set("Content-Disposition",
+		"attachment; filename=attack_path_"+strconv.FormatInt(assetID, 10)+"_"+strconv.FormatInt(threatID, 10)+".pdf")
+	return c.Send(pdfBytes)
+}
+
+// GET /api/risk/report/asset/:asset_id — full asset PDF (all threats + aggregate).
+func (h *RiskHandler) assetReportPDF(c *fiber.Ctx) error {
+	assetID, err := strconv.ParseInt(c.Params("asset_id"), 10, 64)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid asset_id"})
+	}
+
+	resp, err := h.svc.AssembleAssetAttackPaths(c.Context(), assetID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	pdfBytes, err := report.GenerateAssetReportPDF(resp)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	c.Set("Content-Type", "application/pdf")
+	c.Set("Content-Disposition", "attachment; filename=asset_"+strconv.FormatInt(assetID, 10)+"_report.pdf")
+	return c.Send(pdfBytes)
 }
