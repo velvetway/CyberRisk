@@ -64,6 +64,14 @@ async function request<T>(input: string, init?: RequestInit): Promise<T> {
         return undefined as T;
     }
 
+    // Fiber's SendStatus(201) emits body "Created" (plain text), а мы зовём
+    // эту функцию для всех типов endpoint'ов — JSON и не-JSON. Если ответ
+    // не объявлен как application/json, не пытаемся парсить.
+    const ct = res.headers.get("content-type") || "";
+    if (!ct.includes("application/json")) {
+        return undefined as T;
+    }
+
     const text = await res.text();
     if (!text) {
         return undefined as T;
