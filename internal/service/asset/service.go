@@ -25,24 +25,19 @@ func NewService(repo repository.AssetRepository) Service {
 	return &service{repo: repo}
 }
 
+// CreateAssetInput is the API surface for creating/updating an asset under the
+// PTSZI W-model. Only fields that have meaning in the W formula or are needed
+// for UI/labelling are accepted. Legacy fields (kii_category, data_category,
+// protection_level, C/I/A, business_criticality, …) are no longer in the
+// request body — they are scheduled for removal from the database in Stage 2.
 type CreateAssetInput struct {
-	Name                string                 `json:"name"`
-	Type                string                 `json:"type"`
-	AssetTypeID         *int16                 `json:"asset_type_id"`
-	Owner               *string                `json:"owner"`
-	Description         *string                `json:"description"`
-	Location            *string                `json:"location"`
-	BusinessCriticality int16                  `json:"business_criticality"`
-	Environment         string                 `json:"environment"`
-	Tags                map[string]interface{} `json:"tags"`
-	// Регуляторные поля
-	DataCategory       *string `json:"data_category"`
-	ProtectionLevel    *string `json:"protection_level"`
-	KIICategory        *string `json:"kii_category"`
-	HasPersonalData    bool    `json:"has_personal_data"`
-	PersonalDataVolume *string `json:"personal_data_volume"`
-	HasInternetAccess  bool    `json:"has_internet_access"`
-	IsIsolated         bool    `json:"is_isolated"`
+	Name        string                 `json:"name"`
+	AssetTypeID *int16                 `json:"asset_type_id"`
+	Owner       *string                `json:"owner"`
+	Description *string                `json:"description"`
+	Environment string                 `json:"environment"`
+	IsIsolated  bool                   `json:"is_isolated"`
+	Tags        map[string]interface{} `json:"tags"`
 }
 
 type UpdateAssetInput = CreateAssetInput
@@ -66,67 +61,23 @@ func (s *service) Create(ctx context.Context, in CreateAssetInput) (*domain.Asse
 		tagsBytes = b
 	}
 
-	// Автоматически рассчитываем бизнес-критичность на основе регуляторных полей
-	businessCriticality := CalculateCriticality(
-		in.DataCategory,
-		in.ProtectionLevel,
-		in.KIICategory,
-		in.HasPersonalData,
-		in.PersonalDataVolume,
-		in.HasInternetAccess,
-		in.IsIsolated,
-		in.Environment,
-	)
-
-	// Автоматически рассчитываем CIA на основе критичности
-	c, i, a := CalculateCIA(in.Type, in.Environment, businessCriticality)
-
-	// Подготавливаем тип актива (nullable)
-	var assetType *string
-	if in.Type != "" {
-		assetType = &in.Type
-	}
-
-	// Конвертируем регуляторные поля
-	var dataCategory *domain.DataCategory
-	if in.DataCategory != nil && *in.DataCategory != "" {
-		dc := domain.DataCategory(*in.DataCategory)
-		dataCategory = &dc
-	}
-
-	var protectionLevel *domain.ProtectionLevel
-	if in.ProtectionLevel != nil && *in.ProtectionLevel != "" {
-		pl := domain.ProtectionLevel(*in.ProtectionLevel)
-		protectionLevel = &pl
-	}
-
-	var kiiCategory *domain.KIICategory
-	if in.KIICategory != nil && *in.KIICategory != "" {
-		kii := domain.KIICategory(*in.KIICategory)
-		kiiCategory = &kii
-	}
+	// Database still has NOT NULL CHECK (1..5) constraints on the legacy
+	// criticality/CIA columns; populate sane defaults so inserts succeed
+	// until Stage 2 drops these columns.
+	const legacyDefault int16 = 3
 
 	asset := &domain.Asset{
 		Name:                in.Name,
-		Type:                assetType,
 		AssetTypeID:         in.AssetTypeID,
 		Owner:               in.Owner,
 		Description:         in.Description,
-		Location:            in.Location,
-		BusinessCriticality: businessCriticality,
-		Confidentiality:     c,
-		Integrity:           i,
-		Availability:        a,
+		BusinessCriticality: legacyDefault,
+		Confidentiality:     legacyDefault,
+		Integrity:           legacyDefault,
+		Availability:        legacyDefault,
 		Environment:         env,
+		IsIsolated:          in.IsIsolated,
 		Tags:                tagsBytes,
-		// Регуляторные поля
-		DataCategory:       dataCategory,
-		ProtectionLevel:    protectionLevel,
-		KIICategory:        kiiCategory,
-		HasPersonalData:    in.HasPersonalData,
-		PersonalDataVolume: in.PersonalDataVolume,
-		HasInternetAccess:  in.HasInternetAccess,
-		IsIsolated:         in.IsIsolated,
 	}
 
 	if err := s.repo.Create(ctx, asset); err != nil {
@@ -153,41 +104,17 @@ func (s *service) Update(ctx context.Context, id int64, in UpdateAssetInput) (*d
 		return nil, fmt.Errorf("asset not found")
 	}
 
-	// Обновляем поля
 	a.Name = in.Name
-	if in.Type != "" {
-		a.Type = &in.Type
-	} else {
-		a.Type = nil
-	}
 	a.AssetTypeID = in.AssetTypeID
 	a.Owner = in.Owner
 	a.Description = in.Description
-	a.Location = in.Location
 
 	env := domain.AssetEnvironment(in.Environment)
 	if env == "" {
 		env = domain.AssetEnvProd
 	}
 	a.Environment = env
-
-	// Автоматически рассчитываем бизнес-критичность на основе регуляторных полей
-	a.BusinessCriticality = CalculateCriticality(
-		in.DataCategory,
-		in.ProtectionLevel,
-		in.KIICategory,
-		in.HasPersonalData,
-		in.PersonalDataVolume,
-		in.HasInternetAccess,
-		in.IsIsolated,
-		in.Environment,
-	)
-
-	// Пересчитываем CIA автоматически на основе новой критичности
-	c, i, avail := CalculateCIA(in.Type, in.Environment, a.BusinessCriticality)
-	a.Confidentiality = c
-	a.Integrity = i
-	a.Availability = avail
+	a.IsIsolated = in.IsIsolated
 
 	if in.Tags != nil {
 		b, err := json.Marshal(in.Tags)
@@ -196,33 +123,6 @@ func (s *service) Update(ctx context.Context, id int64, in UpdateAssetInput) (*d
 		}
 		a.Tags = b
 	}
-
-	// Обновляем регуляторные поля
-	if in.DataCategory != nil && *in.DataCategory != "" {
-		dc := domain.DataCategory(*in.DataCategory)
-		a.DataCategory = &dc
-	} else {
-		a.DataCategory = nil
-	}
-
-	if in.ProtectionLevel != nil && *in.ProtectionLevel != "" {
-		pl := domain.ProtectionLevel(*in.ProtectionLevel)
-		a.ProtectionLevel = &pl
-	} else {
-		a.ProtectionLevel = nil
-	}
-
-	if in.KIICategory != nil && *in.KIICategory != "" {
-		kii := domain.KIICategory(*in.KIICategory)
-		a.KIICategory = &kii
-	} else {
-		a.KIICategory = nil
-	}
-
-	a.HasPersonalData = in.HasPersonalData
-	a.PersonalDataVolume = in.PersonalDataVolume
-	a.HasInternetAccess = in.HasInternetAccess
-	a.IsIsolated = in.IsIsolated
 
 	if err := s.repo.Update(ctx, a); err != nil {
 		return nil, err

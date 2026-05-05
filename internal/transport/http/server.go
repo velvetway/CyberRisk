@@ -88,11 +88,11 @@ func NewServer(_ context.Context, db *pgxpool.Pool, jwtSecret string) *fiber.App
 	assetVulnSvc := assetVulnService.NewService(assetVulnRepo)
 	assetVulnHandler := NewAssetVulnerabilityHandler(assetVulnSvc)
 
-	// Risk
+	// Risk (PTSZI W-model)
 	threatSourceRepo := repository.NewThreatSourceRepository(db)
 	destructiveActionRepo := repository.NewDestructiveActionRepository(db)
 	riskGraphRepo := repository.NewRiskGraphRepository(db)
-	riskSvc := riskService.NewService(assetRepo, threatRepo, vulnRepo, assetVulnRepo, threatSourceRepo, destructiveActionRepo, riskGraphRepo)
+	riskSvc := riskService.NewService(assetRepo, threatRepo, threatSourceRepo, destructiveActionRepo, riskGraphRepo)
 	riskHandler := NewRiskHandler(riskSvc)
 
 	// ---------- Public routes (no auth) ----------
@@ -142,15 +142,12 @@ func NewServer(_ context.Context, db *pgxpool.Pool, jwtSecret string) *fiber.App
 	write.Put("/vulnerabilities/:id", vulnHandler.update)
 	adminOnly.Delete("/vulnerabilities/:id", vulnHandler.delete)
 
-	// Risk
+	// Risk (PTSZI W-model)
 	readOnly.Get("/risk/overview", riskHandler.overview)
-	readOnly.Get("/risk/asset/:id", riskHandler.assetRiskProfile)
 	readOnly.Get("/risk/graph/:asset_id/:threat_id", riskHandler.riskGraph)
 	readOnly.Get("/risk/asset/:asset_id/attack-paths", riskHandler.assetAttackPaths)
 	readOnly.Get("/threat-sources", riskHandler.listThreatSources)
 	readOnly.Get("/destructive-actions", riskHandler.listDestructiveActions)
-	write.Post("/risk/preview", riskHandler.previewRisk)
-	write.Post("/risk/report/pdf", riskHandler.GenerateRiskPDF)
 
 	// Software
 	readOnly.Get("/software", softwareHandler.listSoftware)
