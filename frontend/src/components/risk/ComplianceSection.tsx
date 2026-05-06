@@ -7,12 +7,13 @@ import React, { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   api,
+  authFetch,
   AssetComplianceOverview,
   AssetStandardCompliance,
   Control,
   RequirementStatus,
 } from "../../api/client";
-import { Card, Chip, Icon } from "../design";
+import { Btn, Card, Chip, Icon } from "../design";
 
 interface Props {
   assetID: number;
@@ -74,6 +75,24 @@ export const ComplianceSection: React.FC<Props> = ({ assetID }) => {
     };
   }, [assetID, activeCode]);
 
+  const downloadPDF = async () => {
+    try {
+      const res = await authFetch(`/api/compliance/asset/${assetID}/report.pdf`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `compliance-asset-${assetID}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setErr(`PDF: ${(e as Error).message}`);
+    }
+  };
+
   return (
     <Card
       title={
@@ -82,6 +101,13 @@ export const ComplianceSection: React.FC<Props> = ({ assetID }) => {
         </span>
       }
       subtitle="Оценка состояния защищённости (ОСЗ) по требованиям ФСТЭК и ISO 27001 на основе внедрённых на активе контролей."
+      action={
+        overview && overview.length > 0 ? (
+          <Btn variant="outline" size="sm" onClick={downloadPDF} icon={<Icon name="file" />}>
+            Скачать PDF
+          </Btn>
+        ) : undefined
+      }
     >
       {err && (
         <div style={{ color: "var(--risk-critical)", padding: 8 }}>{err}</div>

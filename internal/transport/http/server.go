@@ -119,7 +119,7 @@ func NewServer(_ context.Context, db *pgxpool.Pool, jwtSecret string, bduSnap *b
 	// Compliance (ОСЗ — оценка состояния защищённости активa по стандартам)
 	complianceRepo := repository.NewComplianceRepository(db)
 	complianceSvc := complianceService.NewService(complianceRepo, controlRepo, assetRepo)
-	complianceHandler := NewComplianceHandler(complianceSvc)
+	complianceHandler := NewComplianceHandler(complianceSvc, assetRepo)
 
 	// ---------- Public routes (no auth) ----------
 	api := app.Group("/api")
@@ -237,6 +237,7 @@ func NewServer(_ context.Context, db *pgxpool.Pool, jwtSecret string, bduSnap *b
 	readOnly.Get("/compliance/standards", complianceHandler.listStandards)
 	readOnly.Get("/compliance/asset/:assetID", complianceHandler.assetOverview)
 	readOnly.Get("/compliance/asset/:assetID/standard/:standardCode", complianceHandler.assetByStandard)
+	readOnly.Get("/compliance/asset/:assetID/report.pdf", complianceHandler.assetReportPDF)
 
 	// Software
 	readOnly.Get("/software", softwareHandler.listSoftware)

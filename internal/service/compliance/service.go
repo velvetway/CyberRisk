@@ -23,6 +23,7 @@ type Service interface {
 	ListStandards(ctx context.Context) ([]domain.ComplianceStandard, error)
 	AssetOverview(ctx context.Context, assetID int64) ([]domain.AssetComplianceOverview, error)
 	AssetByStandard(ctx context.Context, assetID int64, standardCode string) (*domain.AssetStandardCompliance, error)
+	AssetAllStandards(ctx context.Context, assetID int64) ([]*domain.AssetStandardCompliance, error)
 }
 
 type service struct {
@@ -209,4 +210,22 @@ func (s *service) AssetByStandard(ctx context.Context, assetID int64, standardCo
 		TotalCount:     len(reqs),
 		Requirements:   statuses,
 	}, nil
+}
+
+// AssetAllStandards — детализация по всем стандартам сразу. Используется
+// генератором PDF-отчёта о состоянии защищённости.
+func (s *service) AssetAllStandards(ctx context.Context, assetID int64) ([]*domain.AssetStandardCompliance, error) {
+	standards, err := s.repo.ListStandards(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*domain.AssetStandardCompliance, 0, len(standards))
+	for _, st := range standards {
+		c, err := s.AssetByStandard(ctx, assetID, st.Code)
+		if err != nil {
+			return nil, fmt.Errorf("asset compliance for %s: %w", st.Code, err)
+		}
+		out = append(out, c)
+	}
+	return out, nil
 }
