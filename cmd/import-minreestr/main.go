@@ -177,18 +177,20 @@ Import complete:
 // HTTP fetch
 // =====================================================================
 
+type apiSubcategory struct {
+	Name string `json:"name"`
+	Code string `json:"subcategoryid"`
+}
+
 type apiProduct struct {
-	ID            string `json:"id"`
-	Name          string `json:"name"`
-	Description   string `json:"description"`
-	Provider      string `json:"provider"`
-	WebsiteURL    string `json:"websiteUrl"`
-	RegistryYear  string `json:"registryyear"`
-	Replaces      string `json:"replaces"`
-	Subcategories []struct {
-		Name string `json:"name"`
-		Code string `json:"subcategoryid"`
-	} `json:"subcategories"`
+	ID            string           `json:"id"`
+	Name          string           `json:"name"`
+	Description   string           `json:"description"`
+	Provider      string           `json:"provider"`
+	WebsiteURL    string           `json:"websiteUrl"`
+	RegistryYear  string           `json:"registryyear"`
+	Replaces      string           `json:"replaces"`
+	Subcategories []apiSubcategory `json:"subcategories"`
 }
 
 type apiResponse struct {
@@ -306,13 +308,7 @@ func upsertBatch(ctx context.Context, pool *pgxpool.Pool, items []apiProduct, ca
 			stats.skipped++
 			continue
 		}
-		var categoryID *int16
-		for _, sub := range p.Subcategories {
-			if id, ok := catByName[strings.ToLower(sub.Name)]; ok {
-				categoryID = &id
-				break
-			}
-		}
+		categoryID := resolveCategory(p.Subcategories, catByName)
 		if categoryID != nil {
 			stats.withCategory++
 		}
@@ -358,4 +354,114 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// =====================================================================
+// Категоризация
+// =====================================================================
+//
+// Минцифры использует иерархический классификатор «XX.YY» (например, 02.07
+// = «Средства управления базами данных»). Их таксономия в разы детальнее
+// нашей (14 общих категорий: os/dbms/erp/crm/office/antivirus/backup/…),
+// поэтому маппим в три прохода:
+//   1) точный subcategoryid → конкретная категория (надёжнее всего);
+//   2) префикс XX.* → категория (для секций, где почти всё одинаково,
+//      например 03.* = ИБ, 04.* = разработка);
+//   3) keyword по subcategory.name (страховка от незнакомых кодов);
+//   4) fallback в «other», чтобы не возвращать NULL.
+//
+// При множественных подкатегориях у продукта берём ПЕРВУЮ совпавшую —
+// результаты приоритизируются проходами, не порядком в массиве.
+
+// subcatCodeMap — точные коды Минцифры → код нашей категории.
+var subcatCodeMap = map[string]string{
+	// 01.* — встроенные системные
+	"01.02": "os",
+	// 02.* — серверная инфра
+	"02.04": "virtualization", "02.12": "virtualization",
+	"02.05": "backup",
+	"02.06": "web",
+	"02.07": "dbms",
+	"02.08": "monitoring", "02.11": "monitoring",
+	// 04.03 — отдельный кейс: «Офисные приложения (№621)» внутри секции разработки
+	"04.03": "office",
+	// 06.* — офис/коммуникации
+	"06.02": "network", "06.13": "network",
+	"06.03": "office", "06.05": "office",
+	"06.08": "office", "06.09": "office",
+	"06.10": "office", "06.11": "office", "06.12": "office",
+	"06.04": "mail",
+	"06.07": "web",
+	// 09.* — корпоративное управление
+	"09.07": "erp",
+	"09.09": "crm",
+	"09.10": "monitoring",
+}
+
+// subcatPrefixMap — двузначный префикс → категория. Применяется только
+// если точный код не дал ответа.
+var subcatPrefixMap = map[string]string{
+	"03": "antivirus",   // вся секция ИБ → «Антивирус/СЗИ»
+	"04": "development", // вся секция разработки
+	"07": "development", // парсеры/анализаторы
+}
+
+// nameKeywordMap — корни слов в subcategory.name для случая, когда коды
+// продукта не покрыты. Порядок важен: более специфичные раньше.
+var nameKeywordMap = []struct{ kw, code string }{
+	{"антивирус", "antivirus"}, {"межсетев", "antivirus"}, {"шифрован", "antivirus"},
+	{"информационной безопасности", "antivirus"},
+	{"операционн", "os"},
+	{"субд", "dbms"}, {"базами данных", "dbms"}, {"база данных", "dbms"},
+	{"erp", "erp"}, {"crm", "crm"},
+	{"почтов", "mail"},
+	{"виртуализ", "virtualization"}, {"контейнер", "virtualization"},
+	{"резервн", "backup"}, {"бэкап", "backup"},
+	{"мониторинг", "monitoring"},
+	{"коммуникацион", "network"}, {"сетев", "network"},
+	{"разработк", "development"}, {"программирован", "development"},
+	{"веб", "web"}, {"браузер", "web"}, {"серверное", "web"},
+	{"офис", "office"}, {"редактор", "office"}, {"документообор", "office"},
+}
+
+// resolveCategory возвращает id нашей категории для одного продукта или nil.
+func resolveCategory(subs []apiSubcategory, catByCode map[string]int16) *int16 {
+	pick := func(code string) *int16 {
+		if id, ok := catByCode[code]; ok {
+			return &id
+		}
+		return nil
+	}
+
+	// 1) точный код подкатегории
+	for _, s := range subs {
+		if c, ok := subcatCodeMap[s.Code]; ok {
+			if id := pick(c); id != nil {
+				return id
+			}
+		}
+	}
+	// 2) префикс XX.*
+	for _, s := range subs {
+		if len(s.Code) >= 2 {
+			if c, ok := subcatPrefixMap[s.Code[:2]]; ok {
+				if id := pick(c); id != nil {
+					return id
+				}
+			}
+		}
+	}
+	// 3) keyword по имени подкатегории
+	for _, s := range subs {
+		n := strings.ToLower(s.Name)
+		for _, kv := range nameKeywordMap {
+			if strings.Contains(n, kv.kw) {
+				if id := pick(kv.code); id != nil {
+					return id
+				}
+			}
+		}
+	}
+	// 4) fallback на «other»
+	return pick("other")
 }
