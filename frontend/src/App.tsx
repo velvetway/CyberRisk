@@ -16,6 +16,7 @@ import { ThreatsCatalogPage } from "./pages/ThreatsCatalogPage";
 import { SoftwareCatalogPage } from "./pages/SoftwareCatalogPage";
 import { RiskGraphPage } from "./pages/RiskGraphPage";
 import { DashboardPage } from "./pages/DashboardPage";
+import { OrganizationPage } from "./pages/OrganizationPage";
 
 type Theme = 'dark' | 'light';
 type Accent = 'indigo' | 'cyan' | 'emerald' | 'amber' | 'crimson';
@@ -121,6 +122,7 @@ function RoutedApp() {
       <Route path="/software" element={<LayoutGuard><SoftwareCatalogPage /></LayoutGuard>} />
       <Route path="/threats" element={<LayoutGuard><ThreatsCatalogPage /></LayoutGuard>} />
       <Route path="/risk/graph/:assetId" element={<LayoutGuard><RiskGraphPage /></LayoutGuard>} />
+      <Route path="/organization" element={<LayoutGuard><OrganizationPage /></LayoutGuard>} />
       <Route path="*" element={<LayoutGuard><AssetsPage /></LayoutGuard>} />
     </Routes>
   );

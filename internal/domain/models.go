@@ -308,3 +308,64 @@ type AssetComplianceOverview struct {
 	UncoveredCount int                `json:"uncovered_count"`
 	TotalCount     int                `json:"total_count"`
 }
+
+// ---- Organization-level views ----
+
+// OrganizationOverview — сводные показатели по всем активам организации.
+type OrganizationOverview struct {
+	TotalAssets         int                              `json:"total_assets"`
+	IsolatedAssets      int                              `json:"isolated_assets"`
+	AssetsByEnvironment map[string]int                   `json:"assets_by_environment"`
+	AssetsByType        []AssetTypeBucket                `json:"assets_by_type"`
+	RiskDistribution    map[string]int                   `json:"risk_distribution"`     // level -> кол-во активов
+	WMax                float64                          `json:"w_max"`                 // максимальный W среди всех (asset×threat)
+	WMaxAsset           string                           `json:"w_max_asset,omitempty"`
+	WMaxThreat          string                           `json:"w_max_threat,omitempty"`
+	AvgWPerAsset        float64                          `json:"avg_w_per_asset"`       // средний W_max по активам
+	TotalControls       int                              `json:"total_controls"`        // суммарное количество (asset, control)
+	UncoveredVLs        int                              `json:"uncovered_vls"`         // ∑ непокрытых VL по активам
+	ComplianceByStd     []OrganizationComplianceSummary  `json:"compliance_by_standard"`
+}
+
+// AssetTypeBucket — распределение активов по типам.
+type AssetTypeBucket struct {
+	TypeID   *int16 `json:"type_id,omitempty"`
+	TypeName string `json:"type_name"`
+	Count    int    `json:"count"`
+}
+
+// OrganizationComplianceSummary — сводный compliance-score по стандарту
+// усреднённый по всем активам.
+type OrganizationComplianceSummary struct {
+	Standard     ComplianceStandard `json:"standard"`
+	AvgScore     float64            `json:"avg_score"`
+	MinScore     float64            `json:"min_score"`
+	MaxScore     float64            `json:"max_score"`
+	AssetsCount  int                `json:"assets_count"`
+}
+
+// AssetMatrixRow — одна строка табличного представления актива в сводке организации.
+type AssetMatrixRow struct {
+	AssetID         int64                       `json:"asset_id"`
+	Name            string                      `json:"name"`
+	TypeName        string                      `json:"type_name,omitempty"`
+	Environment     string                      `json:"environment,omitempty"`
+	IsIsolated      bool                        `json:"is_isolated"`
+	WMax            float64                     `json:"w_max"`
+	Level           string                      `json:"level"`
+	ThreatCount     int                         `json:"threat_count"`
+	ControlCount    int                         `json:"control_count"`
+	ComplianceByStd []AssetComplianceOverview   `json:"compliance_by_standard"`
+}
+
+// CriticalRisk — единичная (актив × угроза) пара с высоким W. Используется
+// в «топ критичных рисков» сводного отчёта.
+type CriticalRisk struct {
+	AssetID    int64   `json:"asset_id"`
+	AssetName  string  `json:"asset_name"`
+	ThreatID   int64   `json:"threat_id"`
+	ThreatName string  `json:"threat_name"`
+	BDUID      string  `json:"bdu_id,omitempty"`
+	W          float64 `json:"w"`
+	Level      string  `json:"level"`
+}

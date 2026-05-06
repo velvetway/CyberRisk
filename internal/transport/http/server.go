@@ -11,6 +11,7 @@ import (
 	authService "Diplom/internal/service/auth"
 	complianceService "Diplom/internal/service/compliance"
 	controlService "Diplom/internal/service/control"
+	organizationService "Diplom/internal/service/organization"
 	riskService "Diplom/internal/service/risk"
 	softwareService "Diplom/internal/service/software"
 	threatService "Diplom/internal/service/threat"
@@ -133,6 +134,10 @@ func NewServer(_ context.Context, db *pgxpool.Pool, jwtSecret string, bduSnap *b
 		assetRepo, softwareRepo, controlRepo, assetVulnRepo,
 		riskSvc, complianceSvc, assetTypeNameLookup,
 	)
+
+	// Organization-level overview / отчёт по всей организации
+	organizationSvc := organizationService.NewService(assetRepo, controlRepo, riskSvc, complianceSvc, assetTypeNameLookup)
+	organizationHandler := NewOrganizationHandler(organizationSvc)
 
 	// ---------- Public routes (no auth) ----------
 	api := app.Group("/api")
@@ -257,6 +262,12 @@ func NewServer(_ context.Context, db *pgxpool.Pool, jwtSecret string, bduSnap *b
 	readOnly.Get("/reports/asset/:assetID/document/threat-model.pdf", documentHandler.threatModel)
 	readOnly.Get("/reports/asset/:assetID/document/protection-plan.pdf", documentHandler.protectionPlan)
 	readOnly.Get("/reports/asset/:assetID/documents.zip", documentHandler.pack)
+
+	// Organization-level
+	readOnly.Get("/organization/overview", organizationHandler.overview)
+	readOnly.Get("/organization/asset-matrix", organizationHandler.assetMatrix)
+	readOnly.Get("/organization/critical-risks", organizationHandler.criticalRisks)
+	readOnly.Get("/organization/report.pdf", organizationHandler.reportPDF)
 
 	// Software
 	readOnly.Get("/software", softwareHandler.listSoftware)

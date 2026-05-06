@@ -14,8 +14,9 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: NavItem[] = [
-  { id: 'dashboard', path: '/',                label: 'Обзор',            icon: 'grid',     badge: null,    section: 'main' },
-  { id: 'graph',     path: '/risk/graph',      label: 'Граф атаки',       icon: 'flow',     badge: 'ПТСЗИ', section: 'main' },
+  { id: 'dashboard',    path: '/',             label: 'Обзор',            icon: 'grid',     badge: null,    section: 'main' },
+  { id: 'organization', path: '/organization', label: 'Организация',      icon: 'shield',   badge: null,    section: 'main' },
+  { id: 'graph',        path: '/risk/graph',   label: 'Граф атаки',       icon: 'flow',     badge: 'ПТСЗИ', section: 'main' },
   { id: 'assets',    path: '/assets',          label: 'Реестр активов',   icon: 'layers',   badge: null,    section: 'main' },
   { id: 'software',  path: '/software',        label: 'Справочник ПО',    icon: 'package',  badge: null,    section: 'main' },
   { id: 'threats',   path: '/threats',         label: 'Каталог угроз',    icon: 'alert',    badge: 'БДУ',   section: 'refs' },

@@ -285,6 +285,17 @@ export const api = {
     getAssetComplianceDetail(assetID: number, standardCode: string): Promise<AssetStandardCompliance> {
         return request<AssetStandardCompliance>(`/api/compliance/asset/${assetID}/standard/${standardCode}`);
     },
+
+    // Organization-level
+    getOrganizationOverview(): Promise<OrganizationOverview> {
+        return request<OrganizationOverview>("/api/organization/overview");
+    },
+    getOrganizationAssetMatrix(): Promise<OrganizationAssetRow[]> {
+        return request<OrganizationAssetRow[]>("/api/organization/asset-matrix");
+    },
+    getOrganizationCriticalRisks(limit = 20): Promise<OrganizationCriticalRisk[]> {
+        return request<OrganizationCriticalRisk[]>(`/api/organization/critical-risks?limit=${limit}`);
+    },
 };
 
 // ---------- P8 типы ----------
@@ -433,4 +444,58 @@ export interface AssetComplianceOverview {
 
 export interface AssetStandardCompliance extends AssetComplianceOverview {
     requirements: RequirementStatus[];
+}
+
+// ---------- Organization-level ----------
+
+export interface OrganizationAssetTypeBucket {
+    type_id?: number;
+    type_name: string;
+    count: number;
+}
+
+export interface OrganizationComplianceSummary {
+    standard: ComplianceStandard;
+    avg_score: number;
+    min_score: number;
+    max_score: number;
+    assets_count: number;
+}
+
+export interface OrganizationOverview {
+    total_assets: number;
+    isolated_assets: number;
+    assets_by_environment: Record<string, number>;
+    assets_by_type: OrganizationAssetTypeBucket[];
+    risk_distribution: Record<string, number>;
+    w_max: number;
+    w_max_asset?: string;
+    w_max_threat?: string;
+    avg_w_per_asset: number;
+    total_controls: number;
+    uncovered_vls: number;
+    compliance_by_standard: OrganizationComplianceSummary[];
+}
+
+export interface OrganizationAssetRow {
+    asset_id: number;
+    name: string;
+    type_name?: string;
+    environment?: string;
+    is_isolated: boolean;
+    w_max: number;
+    level: string;
+    threat_count: number;
+    control_count: number;
+    compliance_by_standard: AssetComplianceOverview[];
+}
+
+export interface OrganizationCriticalRisk {
+    asset_id: number;
+    asset_name: string;
+    threat_id: number;
+    threat_name: string;
+    bdu_id?: string;
+    w: number;
+    level: string;
 }
