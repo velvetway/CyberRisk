@@ -10,6 +10,7 @@ import {
 import { Asset, Software } from "../types";
 import { Btn, Card, Chip, Icon, IconBtn, RiskBadge } from "../components/design";
 import { ComplianceSection } from "../components/risk/ComplianceSection";
+import { DocumentsMenu } from "../components/risk/DocumentsMenu";
 
 // 6 категорий VL из диплома; индекс соответствует id (после миграции 034
 // SMALLSERIAL стартует с 1).
@@ -153,6 +154,7 @@ export const AssetDetailPage: React.FC = () => {
           {aggregate && (
             <RiskBadge level={(aggregate.level as any) || "low"} score={aggregate.w_max} />
           )}
+          <DocumentsMenu assetID={assetID} />
           <Btn variant="primary" onClick={recomputeRisk} disabled={recomputing} icon={<Icon name="refresh" />}>
             {recomputing ? "Считаю…" : "Пересчитать W"}
           </Btn>

@@ -121,6 +121,19 @@ func NewServer(_ context.Context, db *pgxpool.Pool, jwtSecret string, bduSnap *b
 	complianceSvc := complianceService.NewService(complianceRepo, controlRepo, assetRepo)
 	complianceHandler := NewComplianceHandler(complianceSvc, assetRepo)
 
+	// Documents (орг.-тех. документация: паспорт АС, модель угроз, план защиты)
+	assetTypeNameLookup := func(ctx context.Context, id int16) string {
+		var name string
+		if err := db.QueryRow(ctx, `SELECT name FROM asset_types WHERE id = $1`, id).Scan(&name); err != nil {
+			return ""
+		}
+		return name
+	}
+	documentHandler := NewDocumentHandler(
+		assetRepo, softwareRepo, controlRepo, assetVulnRepo,
+		riskSvc, complianceSvc, assetTypeNameLookup,
+	)
+
 	// ---------- Public routes (no auth) ----------
 	api := app.Group("/api")
 
@@ -238,6 +251,12 @@ func NewServer(_ context.Context, db *pgxpool.Pool, jwtSecret string, bduSnap *b
 	readOnly.Get("/compliance/asset/:assetID", complianceHandler.assetOverview)
 	readOnly.Get("/compliance/asset/:assetID/standard/:standardCode", complianceHandler.assetByStandard)
 	readOnly.Get("/compliance/asset/:assetID/report.pdf", complianceHandler.assetReportPDF)
+
+	// Орг.-тех. документация
+	readOnly.Get("/reports/asset/:assetID/document/passport.pdf", documentHandler.passport)
+	readOnly.Get("/reports/asset/:assetID/document/threat-model.pdf", documentHandler.threatModel)
+	readOnly.Get("/reports/asset/:assetID/document/protection-plan.pdf", documentHandler.protectionPlan)
+	readOnly.Get("/reports/asset/:assetID/documents.zip", documentHandler.pack)
 
 	// Software
 	readOnly.Get("/software", softwareHandler.listSoftware)
