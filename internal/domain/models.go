@@ -247,3 +247,64 @@ type AssetSoftwareWithSoftware struct {
 	Link     AssetSoftware `json:"link"`
 	Software Software      `json:"software"`
 }
+
+// ---- Compliance / ОСЗ (оценка состояния защищённости) ----
+
+// ComplianceStandard — справочник стандартов ИБ (ФСТЭК-17, ISO 27001, …).
+type ComplianceStandard struct {
+	ID           int16   `db:"id"           json:"id"`
+	Code         string  `db:"code"         json:"code"`
+	Name         string  `db:"name"         json:"name"`
+	FullName     string  `db:"full_name"    json:"full_name"`
+	Jurisdiction string  `db:"jurisdiction" json:"jurisdiction"` // "RU" / "INT"
+	Description  *string `db:"description"  json:"description,omitempty"`
+	SortOrder    int16   `db:"sort_order"   json:"sort_order"`
+}
+
+// ComplianceRequirement — отдельное требование внутри стандарта.
+type ComplianceRequirement struct {
+	ID          int32   `db:"id"          json:"id"`
+	StandardID  int16   `db:"standard_id" json:"standard_id"`
+	Code        string  `db:"code"        json:"code"`
+	Category    string  `db:"category"    json:"category"`
+	Title       string  `db:"title"       json:"title"`
+	Description *string `db:"description" json:"description,omitempty"`
+	Priority    int16   `db:"priority"    json:"priority"`
+	SortOrder   int16   `db:"sort_order"  json:"sort_order"`
+}
+
+// RequirementControlLink — ребро requirement ↔ control с весом покрытия.
+type RequirementControlLink struct {
+	RequirementID  int32   `db:"requirement_id"  json:"requirement_id"`
+	ControlID      int64   `db:"control_id"      json:"control_id"`
+	CoverageWeight float64 `db:"coverage_weight" json:"coverage_weight"`
+}
+
+// RequirementStatus — состояние одного требования для конкретного актива.
+type RequirementStatus struct {
+	Requirement      ComplianceRequirement `json:"requirement"`
+	Coverage         float64               `json:"coverage"`            // [0..1]: max coverage_weight среди внедрённых control
+	CoveringControls []Control             `json:"covering_controls"`   // что закрыло (внедрённые на активе)
+	MissingControls  []Control             `json:"missing_controls"`    // что бы ещё закрыло, если внедрить
+}
+
+// AssetStandardCompliance — детализация по одному стандарту для одного актива.
+type AssetStandardCompliance struct {
+	Standard       ComplianceStandard  `json:"standard"`
+	OverallScore   float64             `json:"overall_score"`   // [0..1]: avg(coverage) по всем требованиям
+	CoveredCount   int                 `json:"covered_count"`   // # требований с coverage >= 1.0
+	PartialCount   int                 `json:"partial_count"`   // 0 < coverage < 1.0
+	UncoveredCount int                 `json:"uncovered_count"` // coverage == 0
+	TotalCount     int                 `json:"total_count"`
+	Requirements   []RequirementStatus `json:"requirements"`
+}
+
+// AssetComplianceOverview — короткая сводка по активу (для списка стандартов).
+type AssetComplianceOverview struct {
+	Standard       ComplianceStandard `json:"standard"`
+	OverallScore   float64            `json:"overall_score"`
+	CoveredCount   int                `json:"covered_count"`
+	PartialCount   int                `json:"partial_count"`
+	UncoveredCount int                `json:"uncovered_count"`
+	TotalCount     int                `json:"total_count"`
+}

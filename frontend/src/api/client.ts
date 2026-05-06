@@ -274,6 +274,17 @@ export const api = {
     getVLCategories(): Promise<VLCategoryRef[]> {
         return request<VLCategoryRef[]>("/api/vl-categories");
     },
+
+    // Compliance / ОСЗ — оценка состояния защищённости
+    getComplianceStandards(): Promise<ComplianceStandard[]> {
+        return request<ComplianceStandard[]>("/api/compliance/standards");
+    },
+    getAssetCompliance(assetID: number): Promise<AssetComplianceOverview[]> {
+        return request<AssetComplianceOverview[]>(`/api/compliance/asset/${assetID}`);
+    },
+    getAssetComplianceDetail(assetID: number, standardCode: string): Promise<AssetStandardCompliance> {
+        return request<AssetStandardCompliance>(`/api/compliance/asset/${assetID}/standard/${standardCode}`);
+    },
 };
 
 // ---------- P8 типы ----------
@@ -379,4 +390,47 @@ export interface VLCategoryRef {
     code: string;
     name: string;
     description?: string;
+}
+
+// ---------- Compliance ----------
+
+export interface ComplianceStandard {
+    id: number;
+    code: string;
+    name: string;
+    full_name: string;
+    jurisdiction: "RU" | "INT";
+    description?: string;
+    sort_order: number;
+}
+
+export interface ComplianceRequirement {
+    id: number;
+    standard_id: number;
+    code: string;
+    category: string;
+    title: string;
+    description?: string;
+    priority: 1 | 2 | 3;
+    sort_order: number;
+}
+
+export interface RequirementStatus {
+    requirement: ComplianceRequirement;
+    coverage: number;
+    covering_controls?: Control[];
+    missing_controls?: Control[];
+}
+
+export interface AssetComplianceOverview {
+    standard: ComplianceStandard;
+    overall_score: number;
+    covered_count: number;
+    partial_count: number;
+    uncovered_count: number;
+    total_count: number;
+}
+
+export interface AssetStandardCompliance extends AssetComplianceOverview {
+    requirements: RequirementStatus[];
 }

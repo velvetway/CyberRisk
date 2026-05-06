@@ -9,6 +9,7 @@ import {
 } from "../api/client";
 import { Asset, Software } from "../types";
 import { Btn, Card, Chip, Icon, IconBtn, RiskBadge } from "../components/design";
+import { ComplianceSection } from "../components/risk/ComplianceSection";
 
 // 6 категорий VL из диплома; индекс соответствует id (после миграции 034
 // SMALLSERIAL стартует с 1).
@@ -188,11 +189,12 @@ export const AssetDetailPage: React.FC = () => {
         </Card>
       )}
 
-      {/* ----- 3 секции ----- */}
+      {/* ----- 4 секции ----- */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16 }}>
         <SoftwareSection assetID={assetID} items={software} onChange={reload} />
         <VulnSection assetID={assetID} buckets={buckets} totalCves={cveCount} autoCount={autoCount} onChange={reload} />
         <ControlSection assetID={assetID} attached={controls} onChange={reload} />
+        <ComplianceSection assetID={assetID} key={`compliance-${controls.length}`} />
       </div>
     </div>
   );

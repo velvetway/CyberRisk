@@ -9,6 +9,7 @@ import (
 	assetService "Diplom/internal/service/asset"
 	assetVulnService "Diplom/internal/service/asset_vulnerability"
 	authService "Diplom/internal/service/auth"
+	complianceService "Diplom/internal/service/compliance"
 	controlService "Diplom/internal/service/control"
 	riskService "Diplom/internal/service/risk"
 	softwareService "Diplom/internal/service/software"
@@ -114,6 +115,11 @@ func NewServer(_ context.Context, db *pgxpool.Pool, jwtSecret string, bduSnap *b
 	riskGraphRepo := repository.NewRiskGraphRepository(db)
 	riskSvc := riskService.NewService(assetRepo, threatRepo, threatSourceRepo, destructiveActionRepo, riskGraphRepo)
 	riskHandler := NewRiskHandler(riskSvc)
+
+	// Compliance (ОСЗ — оценка состояния защищённости активa по стандартам)
+	complianceRepo := repository.NewComplianceRepository(db)
+	complianceSvc := complianceService.NewService(complianceRepo, controlRepo, assetRepo)
+	complianceHandler := NewComplianceHandler(complianceSvc)
 
 	// ---------- Public routes (no auth) ----------
 	api := app.Group("/api")
@@ -226,6 +232,11 @@ func NewServer(_ context.Context, db *pgxpool.Pool, jwtSecret string, bduSnap *b
 	readOnly.Get("/risk/report/asset/:asset_id", riskHandler.assetReportPDF)
 	readOnly.Get("/threat-sources", riskHandler.listThreatSources)
 	readOnly.Get("/destructive-actions", riskHandler.listDestructiveActions)
+
+	// Compliance / ОСЗ
+	readOnly.Get("/compliance/standards", complianceHandler.listStandards)
+	readOnly.Get("/compliance/asset/:assetID", complianceHandler.assetOverview)
+	readOnly.Get("/compliance/asset/:assetID/standard/:standardCode", complianceHandler.assetByStandard)
 
 	// Software
 	readOnly.Get("/software", softwareHandler.listSoftware)
