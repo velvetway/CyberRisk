@@ -15,21 +15,18 @@ import (
 	"Diplom/internal/service/risk"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type DocumentHandler struct {
-	assetRepo     repository.AssetRepository
-	softwareRepo  repository.SoftwareRepository
-	controlRepo   repository.ControlRepository
-	assetVulnRepo repository.AssetVulnerabilityRepository
-	riskSvc       risk.Service
-	complianceSvc compliance.Service
-	pool          interface { // мини-репо asset_types для подстановки имени
-		QueryRow(ctx context.Context, sql string, args ...any) interface {
-			Scan(...any) error
-		}
-	}
-	assetTypeName func(ctx context.Context, id int16) string
+	assetRepo        repository.AssetRepository
+	softwareRepo     repository.SoftwareRepository
+	controlRepo      repository.ControlRepository
+	assetVulnRepo    repository.AssetVulnerabilityRepository
+	riskSvc          risk.Service
+	complianceSvc    compliance.Service
+	pool             *pgxpool.Pool
+	assetTypeName    func(ctx context.Context, id int16) string
 }
 
 // NewDocumentHandler — конструктор. assetTypeName можно nil — тогда имя
@@ -42,6 +39,7 @@ func NewDocumentHandler(
 	riskSvc risk.Service,
 	complianceSvc compliance.Service,
 	assetTypeName func(ctx context.Context, id int16) string,
+	pool *pgxpool.Pool,
 ) *DocumentHandler {
 	return &DocumentHandler{
 		assetRepo:     assetRepo,
@@ -51,19 +49,21 @@ func NewDocumentHandler(
 		riskSvc:       riskSvc,
 		complianceSvc: complianceSvc,
 		assetTypeName: assetTypeName,
+		pool:          pool,
 	}
 }
 
 // ----- сборщик данных -----
 
 type bundle struct {
-	asset       *domain.Asset
-	typeName    string
-	software    []domain.AssetSoftwareWithSoftware
-	controls    []domain.Control
-	vulns       []domain.AssetVulnerability
-	attackPaths *domain.AssetAttackPathsResponse
-	compliance  []*domain.AssetStandardCompliance
+	asset            *domain.Asset
+	typeName         string
+	dataCategoryName string
+	software         []domain.AssetSoftwareWithSoftware
+	controls         []domain.Control
+	vulns            []domain.AssetVulnerability
+	attackPaths      *domain.AssetAttackPathsResponse
+	compliance       []*domain.AssetStandardCompliance
 }
 
 func (h *DocumentHandler) collect(ctx context.Context, assetID int64) (*bundle, error) {
@@ -77,6 +77,10 @@ func (h *DocumentHandler) collect(ctx context.Context, assetID int64) (*bundle, 
 	typeName := ""
 	if asset.AssetTypeID != nil && h.assetTypeName != nil {
 		typeName = h.assetTypeName(ctx, *asset.AssetTypeID)
+	}
+	dataCategoryName := ""
+	if asset.DataCategoryID != nil && h.pool != nil {
+		_ = h.pool.QueryRow(ctx, `SELECT name FROM data_categories WHERE id=$1`, *asset.DataCategoryID).Scan(&dataCategoryName)
 	}
 
 	sw, err := h.softwareRepo.ListAssetSoftware(ctx, assetID)
@@ -103,13 +107,14 @@ func (h *DocumentHandler) collect(ctx context.Context, assetID int64) (*bundle, 
 	}
 
 	return &bundle{
-		asset:       asset,
-		typeName:    typeName,
-		software:    sw,
-		controls:    ctrls,
-		vulns:       vulns,
-		attackPaths: paths,
-		compliance:  compl,
+		asset:            asset,
+		typeName:         typeName,
+		dataCategoryName: dataCategoryName,
+		software:         sw,
+		controls:         ctrls,
+		vulns:            vulns,
+		attackPaths:      paths,
+		compliance:       compl,
 	}, nil
 }
 
@@ -134,6 +139,7 @@ func (h *DocumentHandler) passport(c *fiber.Ctx) error {
 	pdf, err := report.GenerateAssetPassportPDF(&report.AssetPassportData{
 		Asset:            *b.asset,
 		AssetTypeName:    b.typeName,
+		DataCategoryName: b.dataCategoryName,
 		Software:         b.software,
 		Controls:         b.controls,
 		Vulnerabilities:  b.vulns,
@@ -202,6 +208,7 @@ func (h *DocumentHandler) pack(c *fiber.Ctx) error {
 	pa, err := report.GenerateAssetPassportPDF(&report.AssetPassportData{
 		Asset:            *b.asset,
 		AssetTypeName:    b.typeName,
+		DataCategoryName: b.dataCategoryName,
 		Software:         b.software,
 		Controls:         b.controls,
 		Vulnerabilities:  b.vulns,

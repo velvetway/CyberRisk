@@ -33,16 +33,17 @@ func (h *AssetHandler) Register(r fiber.Router) {
 // All legacy regulatory / criticality / CIA fields have been dropped from the
 // response — see docs/risk-model.md.
 type AssetResponse struct {
-	ID          int64                  `json:"id"`
-	Name        string                 `json:"name"`
-	AssetTypeID *int16                 `json:"asset_type_id,omitempty"`
-	Owner       *string                `json:"owner,omitempty"`
-	Description *string                `json:"description,omitempty"`
-	Environment string                 `json:"environment"`
-	IsIsolated  bool                   `json:"is_isolated"`
-	Tags        map[string]interface{} `json:"tags,omitempty"`
-	CreatedAt   string                 `json:"created_at"`
-	UpdatedAt   string                 `json:"updated_at"`
+	ID             int64                  `json:"id"`
+	Name           string                 `json:"name"`
+	AssetTypeID    *int16                 `json:"asset_type_id,omitempty"`
+	DataCategoryID *int16                 `json:"data_category_id,omitempty"`
+	Owner          *string                `json:"owner,omitempty"`
+	Description    *string                `json:"description,omitempty"`
+	Environment    string                 `json:"environment"`
+	IsIsolated     bool                   `json:"is_isolated"`
+	Tags           map[string]interface{} `json:"tags,omitempty"`
+	CreatedAt      string                 `json:"created_at"`
+	UpdatedAt      string                 `json:"updated_at"`
 }
 
 func assetToResponse(a *domain.Asset) AssetResponse {
@@ -52,16 +53,17 @@ func assetToResponse(a *domain.Asset) AssetResponse {
 	}
 
 	return AssetResponse{
-		ID:          a.ID,
-		Name:        a.Name,
-		AssetTypeID: a.AssetTypeID,
-		Owner:       a.Owner,
-		Description: a.Description,
-		Environment: string(a.Environment),
-		IsIsolated:  a.IsIsolated,
-		Tags:        tags,
-		CreatedAt:   a.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-		UpdatedAt:   a.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		ID:             a.ID,
+		Name:           a.Name,
+		AssetTypeID:    a.AssetTypeID,
+		DataCategoryID: a.DataCategoryID,
+		Owner:          a.Owner,
+		Description:    a.Description,
+		Environment:    string(a.Environment),
+		IsIsolated:     a.IsIsolated,
+		Tags:           tags,
+		CreatedAt:      a.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		UpdatedAt:      a.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}
 }
 

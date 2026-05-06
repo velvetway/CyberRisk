@@ -11,12 +11,13 @@ import (
 
 // AssetPassportData — данные для «Технического паспорта АС».
 type AssetPassportData struct {
-	Asset            domain.Asset
-	AssetTypeName    string
-	Software         []domain.AssetSoftwareWithSoftware
-	Controls         []domain.Control
-	Vulnerabilities  []domain.AssetVulnerability
-	ComplianceScores []*domain.AssetStandardCompliance
+	Asset             domain.Asset
+	AssetTypeName     string
+	DataCategoryName  string
+	Software          []domain.AssetSoftwareWithSoftware
+	Controls          []domain.Control
+	Vulnerabilities   []domain.AssetVulnerability
+	ComplianceScores  []*domain.AssetStandardCompliance
 }
 
 // GenerateAssetPassportPDF — «Технический паспорт автоматизированной системы».
@@ -49,6 +50,7 @@ func GenerateAssetPassportPDF(d *AssetPassportData) ([]byte, error) {
 
 	row(pdf, "Наименование", d.Asset.Name)
 	row(pdf, "Тип актива", coalesce(d.AssetTypeName, "—"))
+	row(pdf, "Категория обрабатываемой информации", coalesce(d.DataCategoryName, "—"))
 	row(pdf, "Среда эксплуатации", envName)
 	row(pdf, "Принадлежность к контуру", contour)
 	row(pdf, "Владелец / ответственный", owner)
@@ -60,6 +62,19 @@ func GenerateAssetPassportPDF(d *AssetPassportData) ([]byte, error) {
 		sectionTitle(pdf, "1.1. Назначение и описание")
 		paragraph(pdf, descr)
 	}
+
+	// 1.2. Цели и задачи защиты информации (по ПТСЗИ из 7.png диплома).
+	sectionTitle(pdf, "1.2. Цели и задачи защиты информации")
+	paragraph(pdf, "Цели защиты информации в составе данной автоматизированной системы:")
+	paragraph(pdf, "  • обеспечение конфиденциальности — предотвращение несанкционированного раскрытия защищаемой информации;")
+	paragraph(pdf, "  • обеспечение целостности — предотвращение несанкционированного и непреднамеренного изменения защищаемой информации;")
+	paragraph(pdf, "  • обеспечение доступности — гарантия своевременного предоставления защищаемой информации авторизованным пользователям;")
+	paragraph(pdf, "  • обеспечение неотказуемости — фиксация авторов выполняемых действий с защищаемой информацией.")
+	paragraph(pdf, "")
+	paragraph(pdf, "Задачи защиты информации:")
+	paragraph(pdf, "  • противодействие угрозам, актуальным для данного типа активов (см. модель угроз ИБ);")
+	paragraph(pdf, "  • выполнение требований нормативной базы — Приказ ФСТЭК №17, ISO/IEC 27001:2022 (см. отчёт о состоянии защищённости);")
+	paragraph(pdf, "  • реализация мероприятий по защите АРМ, ЛВС, электронного документооборота и конфиденциальной информации (см. перечень мер защиты).")
 
 	// 2. Состав ПО
 	sectionTitle(pdf, "2. Состав программного обеспечения")

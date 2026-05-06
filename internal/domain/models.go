@@ -70,13 +70,14 @@ type AssetTypeRef struct {
 // has_personal_data, personal_data_volume, has_internet_access, type, location)
 // удалены миграцией 020 — см. docs/risk-model.md.
 type Asset struct {
-	ID          int64            `db:"id"`
-	Name        string           `db:"name"`
-	AssetTypeID *int16           `db:"asset_type_id"`
-	Owner       *string          `db:"owner"`
-	Description *string          `db:"description"`
-	Environment AssetEnvironment `db:"environment"`
-	IsIsolated  bool             `db:"is_isolated"`
+	ID             int64            `db:"id"`
+	Name           string           `db:"name"`
+	AssetTypeID    *int16           `db:"asset_type_id"`
+	DataCategoryID *int16           `db:"data_category_id"`
+	Owner          *string          `db:"owner"`
+	Description    *string          `db:"description"`
+	Environment    AssetEnvironment `db:"environment"`
+	IsIsolated     bool             `db:"is_isolated"`
 
 	Tags      []byte    `db:"tags"`
 	CreatedAt time.Time `db:"created_at"`

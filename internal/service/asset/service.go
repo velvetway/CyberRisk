@@ -29,13 +29,14 @@ func NewService(repo repository.AssetRepository) Service {
 // the PTSZI W-model. Only fields that have meaning in the W formula or are
 // needed for UI/labelling are accepted.
 type CreateAssetInput struct {
-	Name        string                 `json:"name"`
-	AssetTypeID *int16                 `json:"asset_type_id"`
-	Owner       *string                `json:"owner"`
-	Description *string                `json:"description"`
-	Environment string                 `json:"environment"`
-	IsIsolated  bool                   `json:"is_isolated"`
-	Tags        map[string]interface{} `json:"tags"`
+	Name           string                 `json:"name"`
+	AssetTypeID    *int16                 `json:"asset_type_id"`
+	DataCategoryID *int16                 `json:"data_category_id"`
+	Owner          *string                `json:"owner"`
+	Description    *string                `json:"description"`
+	Environment    string                 `json:"environment"`
+	IsIsolated     bool                   `json:"is_isolated"`
+	Tags           map[string]interface{} `json:"tags"`
 }
 
 type UpdateAssetInput = CreateAssetInput
@@ -60,13 +61,14 @@ func (s *service) Create(ctx context.Context, in CreateAssetInput) (*domain.Asse
 	}
 
 	asset := &domain.Asset{
-		Name:        in.Name,
-		AssetTypeID: in.AssetTypeID,
-		Owner:       in.Owner,
-		Description: in.Description,
-		Environment: env,
-		IsIsolated:  in.IsIsolated,
-		Tags:        tagsBytes,
+		Name:           in.Name,
+		AssetTypeID:    in.AssetTypeID,
+		DataCategoryID: in.DataCategoryID,
+		Owner:          in.Owner,
+		Description:    in.Description,
+		Environment:    env,
+		IsIsolated:     in.IsIsolated,
+		Tags:           tagsBytes,
 	}
 
 	if err := s.repo.Create(ctx, asset); err != nil {
@@ -95,6 +97,7 @@ func (s *service) Update(ctx context.Context, id int64, in UpdateAssetInput) (*d
 
 	a.Name = in.Name
 	a.AssetTypeID = in.AssetTypeID
+	a.DataCategoryID = in.DataCategoryID
 	a.Owner = in.Owner
 	a.Description = in.Description
 

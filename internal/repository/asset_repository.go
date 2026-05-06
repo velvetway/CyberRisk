@@ -35,6 +35,7 @@ const assetSelectColumns = `
     id,
     name,
     asset_type_id,
+    data_category_id,
     owner,
     description,
     environment,
@@ -49,6 +50,7 @@ func scanAsset(row pgx.Row, a *domain.Asset) error {
 		&a.ID,
 		&a.Name,
 		&a.AssetTypeID,
+		&a.DataCategoryID,
 		&a.Owner,
 		&a.Description,
 		&a.Environment,
@@ -64,18 +66,20 @@ func (r *assetRepository) Create(ctx context.Context, a *domain.Asset) error {
 INSERT INTO assets (
     name,
     asset_type_id,
+    data_category_id,
     owner,
     description,
     environment,
     is_isolated,
     tags
 ) VALUES (
-    $1,$2,$3,$4,$5,$6,$7
+    $1,$2,$3,$4,$5,$6,$7,$8
 ) RETURNING id, created_at, updated_at
 `
 	row := r.pool.QueryRow(ctx, q,
 		a.Name,
 		a.AssetTypeID,
+		a.DataCategoryID,
 		a.Owner,
 		a.Description,
 		a.Environment,
@@ -138,20 +142,22 @@ func (r *assetRepository) Update(ctx context.Context, a *domain.Asset) error {
 	const q = `
 UPDATE assets
 SET
-    name           = $1,
-    asset_type_id  = $2,
-    owner          = $3,
-    description    = $4,
-    environment    = $5,
-    is_isolated    = $6,
-    tags           = $7,
-    updated_at     = now()
-WHERE id = $8
+    name             = $1,
+    asset_type_id    = $2,
+    data_category_id = $3,
+    owner            = $4,
+    description      = $5,
+    environment      = $6,
+    is_isolated      = $7,
+    tags             = $8,
+    updated_at       = now()
+WHERE id = $9
 RETURNING updated_at
 `
 	row := r.pool.QueryRow(ctx, q,
 		a.Name,
 		a.AssetTypeID,
+		a.DataCategoryID,
 		a.Owner,
 		a.Description,
 		a.Environment,

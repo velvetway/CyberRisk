@@ -12,7 +12,8 @@ import { authFetch } from "../api/client";
 interface AssetFormData {
     name: string;
     description: string;
-    asset_type_id: string;  // SELECT value, parsed to int on submit
+    asset_type_id: string;       // SELECT value, parsed to int on submit
+    data_category_id: string;    // SELECT value, parsed to int on submit
     owner: string;
     environment: string;
     is_isolated: boolean;
@@ -22,6 +23,7 @@ const initialFormData: AssetFormData = {
     name: "",
     description: "",
     asset_type_id: "",
+    data_category_id: "",
     owner: "",
     environment: "prod",
     is_isolated: false,
@@ -33,6 +35,13 @@ interface AssetTypeRef {
     description?: string;
 }
 
+interface DataCategoryRef {
+    id: number;
+    code: string;
+    name: string;
+    description?: string;
+}
+
 export const AssetFormPage: React.FC = () => {
     const { id } = useParams<{ id?: string }>();
     const navigate = useNavigate();
@@ -40,6 +49,7 @@ export const AssetFormPage: React.FC = () => {
 
     const [formData, setFormData] = useState<AssetFormData>(initialFormData);
     const [assetTypes, setAssetTypes] = useState<AssetTypeRef[]>([]);
+    const [dataCategories, setDataCategories] = useState<DataCategoryRef[]>([]);
     const [loading, setLoading] = useState(false);
     const [loadingData, setLoadingData] = useState(isEditMode);
 
@@ -69,6 +79,17 @@ export const AssetFormPage: React.FC = () => {
                 { id: 8, name: "Cloud" },
             ]);
         })();
+
+        // Категории обрабатываемой информации (миграция 039)
+        (async () => {
+            try {
+                const res = await authFetch("/api/data-categories");
+                if (res.ok) {
+                    const list = await res.json();
+                    if (Array.isArray(list)) setDataCategories(list);
+                }
+            } catch {/* ignore */}
+        })();
     }, []);
 
     useEffect(() => {
@@ -85,6 +106,7 @@ export const AssetFormPage: React.FC = () => {
                 name: asset.name || "",
                 description: asset.description || "",
                 asset_type_id: asset.asset_type_id != null ? String(asset.asset_type_id) : "",
+                data_category_id: asset.data_category_id != null ? String(asset.data_category_id) : "",
                 owner: asset.owner || "",
                 environment: asset.environment || "prod",
                 is_isolated: !!asset.is_isolated,
@@ -118,6 +140,7 @@ export const AssetFormPage: React.FC = () => {
                 name: formData.name,
                 description: formData.description || undefined,
                 asset_type_id: formData.asset_type_id ? parseInt(formData.asset_type_id, 10) : undefined,
+                data_category_id: formData.data_category_id ? parseInt(formData.data_category_id, 10) : undefined,
                 owner: formData.owner || undefined,
                 environment: formData.environment,
                 is_isolated: formData.is_isolated,
@@ -192,6 +215,19 @@ export const AssetFormPage: React.FC = () => {
                                     <option value="other">Other</option>
                                 </select>
                             </div>
+                        </div>
+
+                        <div style={{ marginBottom: 20 }}>
+                            <label className="form-label">Категория обрабатываемой информации</label>
+                            <select name="data_category_id" value={formData.data_category_id} onChange={handleChange} className="form-input">
+                                <option value="">— не указана —</option>
+                                {dataCategories.map(d => (
+                                    <option key={d.id} value={String(d.id)}>{d.name}</option>
+                                ))}
+                            </select>
+                            <small style={{ color: "var(--ink-muted)", fontSize: 11 }}>
+                                Используется в техническом паспорте АС (блок «Определение вида обрабатываемой информации» из 7.png диплома).
+                            </small>
                         </div>
 
                         <div>

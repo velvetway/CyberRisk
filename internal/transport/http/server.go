@@ -132,7 +132,7 @@ func NewServer(_ context.Context, db *pgxpool.Pool, jwtSecret string, bduSnap *b
 	}
 	documentHandler := NewDocumentHandler(
 		assetRepo, softwareRepo, controlRepo, assetVulnRepo,
-		riskSvc, complianceSvc, assetTypeNameLookup,
+		riskSvc, complianceSvc, assetTypeNameLookup, db,
 	)
 
 	// Organization-level overview / отчёт по всей организации
@@ -197,6 +197,30 @@ func NewServer(_ context.Context, db *pgxpool.Pool, jwtSecret string, bduSnap *b
 		for rows.Next() {
 			var r row
 			if err := rows.Scan(&r.ID, &r.Name, &r.Description); err != nil {
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+			}
+			out = append(out, r)
+		}
+		return c.JSON(out)
+	})
+
+	// Data categories — категории обрабатываемой информации (для карточки актива).
+	readOnly.Get("/data-categories", func(c *fiber.Ctx) error {
+		rows, err := db.Query(c.Context(), `SELECT id, code, name, COALESCE(description, '') FROM data_categories ORDER BY sort_order, id`)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		}
+		defer rows.Close()
+		type row struct {
+			ID          int16  `json:"id"`
+			Code        string `json:"code"`
+			Name        string `json:"name"`
+			Description string `json:"description"`
+		}
+		out := make([]row, 0, 8)
+		for rows.Next() {
+			var r row
+			if err := rows.Scan(&r.ID, &r.Code, &r.Name, &r.Description); err != nil {
 				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 			}
 			out = append(out, r)
