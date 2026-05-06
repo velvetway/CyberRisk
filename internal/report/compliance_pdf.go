@@ -96,7 +96,7 @@ func renderComplianceTile(pdf gofpdfShim, st *domain.AssetStandardCompliance) {
 	pdf.SetX(55)
 	pdf.SetFont("NotoSans", "", 10)
 	pdf.SetTextColor(90, 90, 90)
-	pdf.CellFormat(0, 8, fmt.Sprintf("  ✓ %d  ◐ %d  ✗ %d  / всего %d",
+	pdf.CellFormat(0, 8, fmt.Sprintf("  закрыто: %d   частично: %d   не закрыто: %d   всего: %d",
 		st.CoveredCount, st.PartialCount, st.UncoveredCount, st.TotalCount), "", 1, "L", false, 0, "")
 
 	pdf.Ln(3)
@@ -151,19 +151,11 @@ func renderStandardDetail(pdf gofpdfShim, st *domain.AssetStandardCompliance) {
 func renderRequirementRow(pdf gofpdfShim, rs domain.RequirementStatus) {
 	r, g, b := complianceLevelRGB(rs.Coverage)
 
-	statusGlyph := "✗"
-	switch {
-	case rs.Coverage >= 1.0:
-		statusGlyph = "✓"
-	case rs.Coverage > 0:
-		statusGlyph = "◐"
-	}
-
-	// Метка статуса
+	// Метка статуса (текстовая — NotoSans не имеет ✓◐✗).
 	pdf.SetFillColor(r, g, b)
 	pdf.SetTextColor(255, 255, 255)
-	pdf.SetFont("NotoSans", "B", 9)
-	pdf.CellFormat(8, 5.5, statusGlyph, "", 0, "C", true, 0, "")
+	pdf.SetFont("NotoSans", "B", 8)
+	pdf.CellFormat(14, 5.5, statusGlyph(rs.Coverage), "", 0, "C", true, 0, "")
 
 	// Код + заголовок
 	pdf.SetTextColor(30, 30, 30)
@@ -178,16 +170,16 @@ func renderRequirementRow(pdf gofpdfShim, rs domain.RequirementStatus) {
 	if names := controlNames(rs.CoveringControls); names != "" {
 		pdf.SetFont("NotoSans", "", 8)
 		pdf.SetTextColor(70, 130, 80)
-		pdf.SetX(33)
-		pdf.MultiCell(0, 3.5, "  ✓ закрыто: "+names, "", "L", false)
+		pdf.SetX(40)
+		pdf.MultiCell(0, 3.5, "  закрыто: "+names, "", "L", false)
 	}
 	// Что бы ещё закрыло
 	if rs.Coverage < 1.0 {
 		if names := controlNames(rs.MissingControls); names != "" {
 			pdf.SetFont("NotoSans", "", 8)
 			pdf.SetTextColor(170, 110, 50)
-			pdf.SetX(33)
-			pdf.MultiCell(0, 3.5, "  + рекомендуем: "+names, "", "L", false)
+			pdf.SetX(40)
+			pdf.MultiCell(0, 3.5, "  рекомендуем: "+names, "", "L", false)
 		}
 	}
 	pdf.Ln(1)

@@ -194,7 +194,7 @@ export const AssetDetailPage: React.FC = () => {
       {/* ----- 4 секции ----- */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16 }}>
         <SoftwareSection assetID={assetID} items={software} onChange={reload} />
-        <VulnSection assetID={assetID} buckets={buckets} totalCves={cveCount} autoCount={autoCount} onChange={reload} />
+        <VulnSection assetID={assetID} buckets={buckets} totalCves={cveCount} autoCount={autoCount} softwareCount={software.length} onChange={reload} />
         <ControlSection assetID={assetID} attached={controls} onChange={reload} />
         <ComplianceSection assetID={assetID} key={`compliance-${controls.length}`} />
       </div>
@@ -426,8 +426,9 @@ const VulnSection: React.FC<{
   buckets: VLBucket[];
   totalCves: number;
   autoCount: number;
+  softwareCount: number;
   onChange: () => Promise<void> | void;
-}> = ({ assetID, buckets, totalCves, autoCount, onChange }) => {
+}> = ({ assetID, buckets, totalCves, autoCount, softwareCount, onChange }) => {
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [showManualForm, setShowManualForm] = useState(false);
   const [bduInput, setBduInput] = useState("");
@@ -488,8 +489,23 @@ const VulnSection: React.FC<{
       )}
 
       {buckets.length === 0 && (
-        <div style={{ color: "var(--fg-muted)", padding: "12px 0" }}>
-          Уязвимости не обнаружены. Привяжите ПО — автодетекция найдёт совпадения с БДУ ФСТЭК.
+        <div style={{ color: "var(--fg-muted)", padding: "12px 0", lineHeight: 1.5 }}>
+          {softwareCount === 0 ? (
+            <>Уязвимости не обнаружены. Привяжите ПО — автодетекция найдёт совпадения с БДУ ФСТЭК.</>
+          ) : (
+            <>
+              По привязанному ПО ({softwareCount} {softwareCount === 1 ? "продукт" : "продукта"}) в БДУ ФСТЭК
+              совпадений не найдено. Возможные причины:
+              <ul style={{ margin: "6px 0 0 18px", padding: 0 }}>
+                <li>ПО отсутствует в публичной БДУ ФСТЭК (нишевое, иностранное, недавно зарегистрированное);</li>
+                <li>имя или вендор в Минцифры отличаются от записи в БДУ — попробуйте «Добавить БДУ-id» вручную;</li>
+                <li>в карточке ПО не указана версия — некоторые уязвимости БДУ привязаны к конкретным версиям.</li>
+              </ul>
+              <div style={{ marginTop: 8, fontSize: 12 }}>
+                Это <b>не означает</b>, что ПО безопасно — БДУ покрывает только публично известные CVE.
+              </div>
+            </>
+          )}
         </div>
       )}
 

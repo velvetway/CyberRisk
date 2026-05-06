@@ -26,10 +26,10 @@ func GenerateThreatModelPDF(asset *domain.Asset, resp *domain.AssetAttackPathsRe
 
 	// 0. Преамбула
 	sectionTitle(pdf, "1. Назначение документа")
-	paragraph(pdf, "Настоящий документ описывает модель угроз информационной безопасности для указанного объекта защиты, сформированную на основании справочника угроз ФСТЭК России (БДУ) и графа атак ПТСЗИ (S → ST → VL → DA). Для каждой применимой угрозы рассчитан риск W в соответствии с методологией, описанной в разделе «Модель риска ПТСЗИ» проекта.")
+	paragraph(pdf, "Настоящий документ описывает модель угроз информационной безопасности для указанного объекта защиты, сформированную на основании справочника угроз ФСТЭК России (БДУ) и графа атак ПТСЗИ (S -> ST -> VL -> DA). Для каждой применимой угрозы рассчитан риск W в соответствии с методологией, описанной в разделе «Модель риска ПТСЗИ» проекта.")
 
 	sectionTitle(pdf, "2. Расчётная формула")
-	paragraph(pdf, "W = ( Q^угроза + q^серьёзность + ( 1 − Q^реакция ) ) / 3 · Z,   где W ∈ [0, 1].")
+	paragraph(pdf, "W = ( Q^угроза + q^серьёзность + ( 1 - Q^реакция ) ) / 3 * Z,   где W в [0, 1].")
 	paragraph(pdf, "Q^угроза — степень реализации угрозы (из справочника БДУ). q^серьёзность — степень опасности (из БДУ). Q^реакция — доля уязвимых звеньев, закрытых внедрёнными на активе средствами защиты. Z = 0.5 (изолированный контур) либо 1.0 (общий контур).")
 
 	if resp == nil || len(resp.Paths) == 0 {
@@ -79,7 +79,14 @@ func GenerateThreatModelPDF(asset *domain.Asset, resp *domain.AssetAttackPathsRe
 	for i := 0; i < limit; i++ {
 		p := resp.Paths[i]
 		pdf.AddPage()
-		renderDocHeader(pdf, fmt.Sprintf("Угроза %d. %s", i+1, p.Threat.Name), asset.Name)
+		// Заголовок-наименование угрозы режется чтобы не уехать за правый
+		// край листа. Полное название печатается отдельно ниже.
+		shortTitle := truncate(fmt.Sprintf("Угроза %d. %s", i+1, p.Threat.Name), 55)
+		renderDocHeader(pdf, shortTitle, asset.Name)
+		pdf.SetFont("NotoSans", "B", 11)
+		pdf.SetTextColor(40, 40, 40)
+		pdf.MultiCell(0, 6, p.Threat.Name, "", "L", false)
+		pdf.Ln(2)
 
 		sectionTitle(pdf, "Идентификация")
 		row(pdf, "Код БДУ", coalesce(p.Threat.BDUID, "—"))

@@ -124,7 +124,7 @@ func GenerateAssetPassportPDF(d *AssetPassportData) ([]byte, error) {
 	if len(d.ComplianceScores) == 0 {
 		paragraph(pdf, "Стандарты соответствия не настроены.")
 	} else {
-		bulletHeader(pdf, []string{"Стандарт", "%", "✓", "◐", "✗", "Всего"}, []float64{90, 20, 18, 18, 18, 18})
+		bulletHeader(pdf, []string{"Стандарт", "%", "Закрыто", "Частично", "Не закрыто", "Всего"}, []float64{75, 20, 25, 25, 25, 18})
 		for _, st := range d.ComplianceScores {
 			bulletRow(pdf, []string{
 				st.Standard.Name,
@@ -133,7 +133,7 @@ func GenerateAssetPassportPDF(d *AssetPassportData) ([]byte, error) {
 				fmt.Sprintf("%d", st.PartialCount),
 				fmt.Sprintf("%d", st.UncoveredCount),
 				fmt.Sprintf("%d", st.TotalCount),
-			}, []float64{90, 20, 18, 18, 18, 18})
+			}, []float64{75, 20, 25, 25, 25, 18})
 		}
 	}
 
@@ -188,11 +188,14 @@ func paragraph(pdf gofpdfShim, t string) {
 	pdf.Ln(1)
 }
 
-// row рендерит строку «label — value».
+// row рендерит строку «label : value». labelWidth = 80mm — чтобы длинные
+// русские лейблы вроде «Категория обрабатываемой информации» поместились
+// в одну строку рядом со значением.
 func row(pdf gofpdfShim, label, value string) {
+	const labelWidth = 80.0
 	pdf.SetFont("NotoSans", "B", 10)
 	pdf.SetTextColor(40, 40, 40)
-	pdf.CellFormat(60, 6, label, "", 0, "L", false, 0, "")
+	pdf.CellFormat(labelWidth, 6, label, "", 0, "L", false, 0, "")
 	pdf.SetFont("NotoSans", "", 10)
 	pdf.SetTextColor(60, 60, 60)
 	pdf.MultiCell(0, 6, value, "", "L", false)

@@ -3,6 +3,7 @@ package report
 import (
 	"bytes"
 	"fmt"
+	"strings"
 
 	"Diplom/internal/domain"
 )
@@ -40,7 +41,7 @@ func GenerateProtectionPlanPDF(d *ProtectionPlanData) ([]byte, error) {
 	row(pdf, "Внедрено СЗИ", fmt.Sprintf("%d из 11", len(d.Controls)))
 	if len(d.ComplianceScores) > 0 {
 		for _, st := range d.ComplianceScores {
-			row(pdf, "Соответствие "+st.Standard.Name, fmt.Sprintf("%.0f%%  (✓%d / ◐%d / ✗%d из %d)",
+			row(pdf, "Соответствие "+st.Standard.Name, fmt.Sprintf("%.0f%%  (закрыто %d / частично %d / нет %d из %d)",
 				st.OverallScore*100, st.CoveredCount, st.PartialCount, st.UncoveredCount, st.TotalCount))
 		}
 	}
@@ -86,7 +87,7 @@ func GenerateProtectionPlanPDF(d *ProtectionPlanData) ([]byte, error) {
 		}
 	}
 
-	renderDocFooter(pdf, "Документ сформирован автоматически системой CyberRisk; рекомендации построены по матрице соответствия VL ↔ control из модели ПТСЗИ.")
+	renderDocFooter(pdf, "Документ сформирован автоматически системой CyberRisk; рекомендации построены по матрице соответствия VL и controls из модели ПТСЗИ.")
 
 	var buf bytes.Buffer
 	if err := pdf.Output(&buf); err != nil {
@@ -188,18 +189,18 @@ func renderMeasureBlock(pdf gofpdfShim, m measureSection) {
 	if len(m.deployed) == 0 {
 		pdf.SetFont("NotoSans", "", 9)
 		pdf.SetTextColor(180, 60, 60)
-		pdf.MultiCell(0, 4.5, "  ✗ Ни одно средство этой группы не внедрено.", "", "L", false)
+		pdf.MultiCell(0, 4.5, "  [нет] Ни одно средство этой группы не внедрено.", "", "L", false)
 	} else {
 		for _, n := range m.deployed {
 			pdf.SetFont("NotoSans", "", 9)
 			pdf.SetTextColor(40, 130, 60)
-			pdf.MultiCell(0, 4.5, "  ✓ "+n, "", "L", false)
+			pdf.MultiCell(0, 4.5, "  [внедрено] "+n, "", "L", false)
 		}
 	}
 	for _, n := range m.missing {
 		pdf.SetFont("NotoSans", "", 9)
 		pdf.SetTextColor(150, 110, 40)
-		pdf.MultiCell(0, 4.5, "  + рекомендуется внедрить: "+n, "", "L", false)
+		pdf.MultiCell(0, 4.5, "  [рекомендуется] "+n, "", "L", false)
 	}
 	pdf.Ln(3)
 }
@@ -244,10 +245,12 @@ func buildRecommendations(paths []domain.AttackPath) []recommendation {
 			names = append(names, n)
 		}
 		if len(names) == 0 {
-			r.recommendation = "Уточнить набор СЗИ по матрице VL ↔ control"
+			r.recommendation = "Уточнить набор СЗИ по матрице VL/controls"
 		} else {
 			r.recommendation = joinControls(names)
 		}
+		// удалим стрелку → если она просочилась в название VL
+		r.vlName = strings.ReplaceAll(r.vlName, "→", "->")
 		out = append(out, *r)
 	}
 	return out

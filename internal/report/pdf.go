@@ -89,7 +89,7 @@ func renderHeader(pdf *gofpdf.Fpdf, title, asset string) {
 	pdf.SetTextColor(90, 90, 90)
 	pdf.Cell(0, 6, "Актив: "+asset)
 	pdf.Ln(4)
-	pdf.Cell(0, 6, "Модель: ПТСЗИ — формула W = (Q^threat + q^threat + (1 − Q^reaction)) / 3 · Z")
+	pdf.Cell(0, 6, "Модель: ПТСЗИ — формула W = (Q^threat + q^threat + (1 - Q^reaction)) / 3 * Z")
 	pdf.Ln(8)
 	pdf.SetDrawColor(220, 220, 220)
 	pdf.Line(15, pdf.GetY(), 195, pdf.GetY())
@@ -169,7 +169,7 @@ func renderWBreakdown(pdf *gofpdf.Fpdf, path *domain.AttackPath) {
 func renderChain(pdf *gofpdf.Fpdf, path *domain.AttackPath) {
 	pdf.SetFont("NotoSans", "B", 12)
 	pdf.SetTextColor(20, 20, 20)
-	pdf.Cell(0, 7, "Цепочка атаки S → ST → VL → DA")
+	pdf.Cell(0, 7, "Цепочка атаки  S -> ST -> VL -> DA")
 	pdf.Ln(8)
 
 	pdf.SetFont("NotoSans", "", 10)
@@ -335,5 +335,25 @@ func levelLabel(level string) string {
 		return "Низкий"
 	default:
 		return level
+	}
+}
+
+// Текстовые маркеры вместо ✓◐✗ — NotoSans их не содержит, и они
+// в PDF выглядят как ⬛-квадраты. Используем короткие русские/латинские.
+const (
+	glyphCovered = "OK"     // полностью закрыто
+	glyphPartial = "Част."  // частично
+	glyphMissing = "Нет"    // не закрыто
+)
+
+// statusGlyph возвращает текстовую метку статуса покрытия для PDF.
+func statusGlyph(coverage float64) string {
+	switch {
+	case coverage >= 1.0:
+		return glyphCovered
+	case coverage > 0:
+		return glyphPartial
+	default:
+		return glyphMissing
 	}
 }

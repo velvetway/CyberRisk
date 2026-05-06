@@ -30,14 +30,14 @@ func GenerateOrganizationReportPDF(
 	sectionTitle(pdf, "1. Обзорные метрики")
 	row(pdf, "Всего активов", fmt.Sprintf("%d", overview.TotalAssets))
 	row(pdf, "Изолированных активов (Z = 0.5)", fmt.Sprintf("%d", overview.IsolatedAssets))
-	row(pdf, "Внедрено СЗИ (всего пар asset×control)", fmt.Sprintf("%d", overview.TotalControls))
+	row(pdf, "Внедрено СЗИ (всего пар актив-control)", fmt.Sprintf("%d", overview.TotalControls))
 	row(pdf, "Непокрытых VL по угрозам", fmt.Sprintf("%d", overview.UncoveredVLs))
 	row(pdf, "Максимальный риск W", fmt.Sprintf("%.2f", overview.WMax))
 	if overview.WMaxAsset != "" {
-		row(pdf, "  ↳ актив", overview.WMaxAsset)
+		row(pdf, "    актив-источник", overview.WMaxAsset)
 	}
 	if overview.WMaxThreat != "" {
-		row(pdf, "  ↳ угроза", overview.WMaxThreat)
+		row(pdf, "    угроза-источник", overview.WMaxThreat)
 	}
 	row(pdf, "Средний W_max по активам", fmt.Sprintf("%.2f", overview.AvgWPerAsset))
 	pdf.Ln(2)
