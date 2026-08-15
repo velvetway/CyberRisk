@@ -6,9 +6,11 @@ import (
 )
 
 type Config struct {
-	DBDSN     string
-	HTTPPort  string
-	JWTSecret string
+	DBDSN               string
+	HTTPPort            string
+	JWTSecret           string
+	BDUSQLitePath       string
+	MinreestrSQLitePath string
 }
 
 // Load загружает конфиг из переменных окружения.
@@ -36,8 +38,17 @@ func Load() (*Config, error) {
 	}
 
 	return &Config{
-		DBDSN:     dsn,
-		HTTPPort:  port,
-		JWTSecret: jwtSecret,
+		DBDSN:               dsn,
+		HTTPPort:            port,
+		JWTSecret:           jwtSecret,
+		BDUSQLitePath:       envOrDefault("BDU_SQLITE_PATH", "./data/bdu.sqlite"),
+		MinreestrSQLitePath: envOrDefault("MINREESTR_SQLITE_PATH", "./data/minreestr.sqlite"),
 	}, nil
+}
+
+func envOrDefault(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
 }
