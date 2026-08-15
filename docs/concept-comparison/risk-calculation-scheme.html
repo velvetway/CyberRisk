@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CyberRisk - реализация ПТСЗИ</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #667085;
+      --line: #d8deea;
+      --soft: #f7f9fc;
+      --blue: #2563eb;
+      --green: #16803c;
+      --amber: #b7791f;
+      --red: #c2410c;
+      --violet: #7c3aed;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #eef2f7;
+      color: var(--ink);
+      font: 13px/1.36 Inter, Arial, sans-serif;
+    }
+    .page {
+      width: 1440px;
+      min-height: 1040px;
+      margin: 0 auto;
+      padding: 30px 34px;
+      background: white;
+    }
+    header {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 20px;
+      align-items: end;
+      border-bottom: 2px solid var(--ink);
+      padding-bottom: 16px;
+      margin-bottom: 16px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 30px;
+      line-height: 1.12;
+      letter-spacing: 0;
+    }
+    h2 {
+      margin: 0 0 8px;
+      font-size: 16px;
+      line-height: 1.2;
+    }
+    h3 {
+      margin: 0 0 6px;
+      font-size: 13px;
+    }
+    p { margin: 0 0 7px; }
+    .subtitle {
+      margin-top: 7px;
+      max-width: 1020px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .badge {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 6px 9px;
+      color: var(--muted);
+      background: var(--soft);
+      font: 12px/1.2 "JetBrains Mono", Consolas, monospace;
+      white-space: nowrap;
+    }
+    .callout {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .box {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      background: white;
+      min-width: 0;
+    }
+    .box.blue { border-top: 5px solid var(--blue); }
+    .box.green { border-top: 5px solid var(--green); }
+    .box.amber { border-top: 5px solid var(--amber); }
+    .box.violet { border-top: 5px solid var(--violet); }
+    .label {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 3px 7px;
+      font-size: 11px;
+      font-weight: 700;
+      background: var(--soft);
+      color: var(--muted);
+      margin-bottom: 7px;
+    }
+    .flow {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfcff;
+      padding: 14px;
+      margin-bottom: 14px;
+    }
+    svg { width: 100%; height: 272px; display: block; }
+    .node { fill: white; stroke: var(--line); stroke-width: 1.3; }
+    .node-blue { stroke: var(--blue); }
+    .node-green { stroke: var(--green); }
+    .node-amber { stroke: var(--amber); }
+    .node-red { stroke: var(--red); }
+    .node-violet { stroke: var(--violet); }
+    .svg-title { font: 700 15px Inter, Arial, sans-serif; fill: var(--ink); }
+    .svg-small { font: 12px Inter, Arial, sans-serif; fill: var(--muted); }
+    .grid {
+      display: grid;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .g2 { grid-template-columns: 1fr 1fr; }
+    .g3 { grid-template-columns: 1fr 1fr 1fr; }
+    ul { margin: 0; padding-left: 17px; }
+    li { margin: 4px 0; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    th, td {
+      border: 1px solid var(--line);
+      padding: 6px 7px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: var(--soft); color: #344054; }
+    .mono { font-family: "JetBrains Mono", Consolas, monospace; font-size: 11px; }
+    .formula {
+      display: block;
+      padding: 8px 9px;
+      border-radius: 6px;
+      border: 1px solid #e8ecf4;
+      background: var(--soft);
+      font-family: "JetBrains Mono", Consolas, monospace;
+      font-size: 11px;
+      margin: 6px 0;
+      color: #243044;
+    }
+    .note {
+      margin-top: 8px;
+      border-left: 4px solid var(--amber);
+      background: #fffbeb;
+      color: #5f4309;
+      padding: 8px 10px;
+      font-size: 12px;
+    }
+    @media print {
+      body { background: white; }
+      .page { width: 100%; padding: 14mm; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header>
+      <div>
+        <h1>ПТСЗИ CyberRisk: фактическая реализация концепта</h1>
+        <div class="subtitle">
+          Схема для листа работы: как PDF-концепт S -> ST -> VL -> методы -> DA -> W реализован через паспорт актива, таблицу УБИ ФСТЭК и матрицы ПТСЗИ.
+        </div>
+      </div>
+      <div class="badge">implemented / 2026-06-05</div>
+    </header>
+
+    <section class="callout">
+      <article class="box green">
+        <span class="label">БДУ ФСТЭК</span>
+        <h2>227 УБИ загружены в БД</h2>
+        <p>Каждая запись содержит источник угрозы, потенциал нарушителя, объект воздействия и последствия по конфиденциальности, целостности, доступности.</p>
+      </article>
+      <article class="box blue">
+        <span class="label">концепт</span>
+        <h2>S -> ST -> VL -> методы -> DA</h2>
+        <p>Канонические справочники и матрицы связей вынесены в отдельные таблицы ПТСЗИ, а не смешаны со старой картой риска.</p>
+      </article>
+      <article class="box amber">
+        <span class="label">расчет</span>
+        <h2>W_i по активу</h2>
+        <p class="formula">W = (Q_threat + q_threat + (1 - Qreaction)) / 3 * Z</p>
+        <p>Сценарий актуален только через пересечение VL угрозы и VL конкретного актива.</p>
+      </article>
+    </section>
+
+    <section class="flow">
+      <svg viewBox="0 0 1320 272" role="img" aria-label="Схема реализации ПТСЗИ">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#667085"></path>
+          </marker>
+        </defs>
+
+        <rect class="node node-green" x="18" y="30" width="180" height="78" rx="8"></rect>
+        <text class="svg-title" x="34" y="60">thrlist.xlsx</text>
+        <text class="svg-small" x="34" y="82">227 УБИ ФСТЭК</text>
+
+        <rect class="node node-green" x="238" y="30" width="196" height="78" rx="8"></rect>
+        <text class="svg-title" x="254" y="58">ptszi_ubi_threats</text>
+        <text class="svg-small" x="254" y="80">источник, объект, К/Ц/Д</text>
+
+        <rect class="node node-violet" x="474" y="30" width="180" height="78" rx="8"></rect>
+        <text class="svg-title" x="490" y="58">mapping</text>
+        <text class="svg-small" x="490" y="80">УБИ -> S, УБИ -> ST</text>
+
+        <rect class="node node-blue" x="704" y="30" width="146" height="78" rx="8"></rect>
+        <text class="svg-title" x="720" y="58">S1..S4</text>
+        <text class="svg-small" x="720" y="80">источники</text>
+
+        <rect class="node node-blue" x="890" y="30" width="146" height="78" rx="8"></rect>
+        <text class="svg-title" x="906" y="58">ST1..ST8</text>
+        <text class="svg-small" x="906" y="80">угрозы</text>
+
+        <rect class="node node-amber" x="474" y="162" width="180" height="78" rx="8"></rect>
+        <text class="svg-title" x="490" y="190">Паспорт актива</text>
+        <text class="svg-small" x="490" y="212">контур, VL, СЗИ</text>
+
+        <rect class="node node-amber" x="704" y="162" width="146" height="78" rx="8"></rect>
+        <text class="svg-title" x="720" y="190">VL1..VL7</text>
+        <text class="svg-small" x="720" y="212">уязвимые звенья</text>
+
+        <rect class="node node-amber" x="890" y="162" width="146" height="78" rx="8"></rect>
+        <text class="svg-title" x="906" y="190">A/FW/IDS...</text>
+        <text class="svg-small" x="906" y="212">методы</text>
+
+        <rect class="node node-red" x="1080" y="30" width="104" height="78" rx="8"></rect>
+        <text class="svg-title" x="1098" y="58">DA1..DA7</text>
+        <text class="svg-small" x="1098" y="80">действия</text>
+
+        <rect class="node node-red" x="1080" y="162" width="180" height="78" rx="8"></rect>
+        <text class="svg-title" x="1098" y="190">W + рекомендации</text>
+        <text class="svg-small" x="1098" y="212">UI / API / отчет</text>
+
+        <line x1="198" y1="69" x2="238" y2="69" stroke="#667085" stroke-width="1.4" marker-end="url(#arrow)"></line>
+        <line x1="434" y1="69" x2="474" y2="69" stroke="#667085" stroke-width="1.4" marker-end="url(#arrow)"></line>
+        <line x1="654" y1="69" x2="704" y2="69" stroke="#667085" stroke-width="1.4" marker-end="url(#arrow)"></line>
+        <line x1="850" y1="69" x2="890" y2="69" stroke="#667085" stroke-width="1.4" marker-end="url(#arrow)"></line>
+        <line x1="1036" y1="69" x2="1080" y2="69" stroke="#667085" stroke-width="1.4" marker-end="url(#arrow)"></line>
+        <line x1="654" y1="201" x2="704" y2="201" stroke="#667085" stroke-width="1.4" marker-end="url(#arrow)"></line>
+        <line x1="850" y1="201" x2="890" y2="201" stroke="#667085" stroke-width="1.4" marker-end="url(#arrow)"></line>
+        <path d="M 963 108 C 963 132, 777 132, 777 162" fill="none" stroke="#667085" stroke-width="1.4" marker-end="url(#arrow)"></path>
+        <path d="M 963 162 C 963 132, 1132 132, 1132 108" fill="none" stroke="#667085" stroke-width="1.4" marker-end="url(#arrow)"></path>
+        <line x1="1036" y1="201" x2="1080" y2="201" stroke="#667085" stroke-width="1.4" marker-end="url(#arrow)"></line>
+        <path d="M 1132 108 C 1132 132, 1170 132, 1170 162" fill="none" stroke="#667085" stroke-width="1.4" marker-end="url(#arrow)"></path>
+      </svg>
+    </section>
+
+    <section class="grid g2">
+      <article class="box">
+        <h2>Маппинг источников БДУ к PDF-концепту</h2>
+        <table>
+          <thead>
+            <tr><th>Источник в УБИ ФСТЭК</th><th>Источник концепта</th><th>Логика</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Внутренний нарушитель, любой потенциал</td><td class="mono">S3</td><td>Персонал организации</td></tr>
+            <tr><td>Внешний нарушитель, низкий потенциал</td><td class="mono">S4</td><td>Хакеры/мошенники без устойчивого ресурса</td></tr>
+            <tr><td>Внешний нарушитель, средний/высокий потенциал</td><td class="mono">S1, S2, S4</td><td>Может быть конкурент, партнер с доступом или сильный внешний атакующий</td></tr>
+          </tbody>
+        </table>
+        <div class="note">Один фрагмент БДУ может давать несколько источников S, потому что БДУ описывает тип нарушителя, а PDF описывает бизнес-роли.</div>
+      </article>
+
+      <article class="box">
+        <h2>Как БДУ влияет на расчет</h2>
+        <table>
+          <thead>
+            <tr><th>Поле УБИ</th><th>Использование</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Потенциал нарушителя</td><td><span class="mono">low=0.33, medium=0.66, high=1.00</span> для <span class="mono">Q_threat</span></td></tr>
+            <tr><td>К/Ц/Д последствия</td><td>1 свойство = 0.33, 2 = 0.66, 3 = 1.00 для <span class="mono">q_threat</span></td></tr>
+            <tr><td>Объект воздействия</td><td>Показывает, что именно атакуется: трафик, ПО, узел, данные, инфраструктура</td></tr>
+            <tr><td>Идентификатор УБИ</td><td>Дает нормативную ссылку в сценарии, графе и отчете</td></tr>
+          </tbody>
+        </table>
+      </article>
+    </section>
+
+    <section class="grid g3">
+      <article class="box blue">
+        <h2>Пример УБИ.001</h2>
+        <p class="formula">Внешний нарушитель со средним потенциалом; Внутренний нарушитель со средним потенциалом</p>
+        <p>Маппинг: <span class="mono">S1, S2, S3, S4</span>.</p>
+        <p>Последствия: К + Ц + Д, поэтому опасность высокая.</p>
+      </article>
+      <article class="box green">
+        <h2>Пример УБИ.002</h2>
+        <p class="formula">Объект воздействия: сетевой трафик; нарушение конфиденциальности</p>
+        <p>Маппинг: <span class="mono">S1, S2, S4</span>.</p>
+        <p>Хорошо ложится в сценарий <span class="mono">ST4 Перехват трафика</span>.</p>
+      </article>
+      <article class="box violet">
+        <h2>Пример W для актива</h2>
+        <p class="formula">ST2: Q=0.50, q=0.70, R=0.73298, Z=1</p>
+        <p class="formula">W = (0.50 + 0.70 + (1 - 0.73298)) / 3 = 0.48901</p>
+        <p>Уровень: medium. Недостающие методы повышают <span class="mono">Qreaction</span> и снижают <span class="mono">W</span>.</p>
+      </article>
+    </section>
+
+    <section class="grid g2">
+      <article class="box">
+        <h2>Где смотреть реализацию</h2>
+        <table>
+          <tbody>
+            <tr><td class="mono">/ptszi/model</td><td>Страница ПТСЗИ: актив, VL, методы, сценарии, УБИ, W</td></tr>
+            <tr><td class="mono">GET /api/ptszi/ubi</td><td>Все 227 УБИ ФСТЭК</td></tr>
+            <tr><td class="mono">GET /api/ptszi/assets/:id/threats</td><td>Применимые ST для актива</td></tr>
+            <tr><td class="mono">GET /api/ptszi/graph/:assetID/:threatID</td><td>Один сценарий: S, ST, VL, методы, DA, УБИ, W</td></tr>
+          </tbody>
+        </table>
+      </article>
+      <article class="box">
+        <h2>Что ставить рядом с PDF-листами</h2>
+        <ul>
+          <li>Для “источников и угроз”: таблицу маппинга БДУ -> S1..S4.</li>
+          <li>Для “уязвимых звеньев”: матрицу ST -> VL и пример УБИ как доказательство сценария.</li>
+          <li>Для “методов”: матрицу VL -> A/FW/IDS/... и чекбоксы методов актива.</li>
+          <li>Для “формулы”: блок actual_vls, Qreaction, Z, W.</li>
+        </ul>
+      </article>
+    </section>
+  </main>
+</body>
+</html>

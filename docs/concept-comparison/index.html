@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CyberRisk: сопоставление концепции и реализации</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #667085;
+      --line: #d7dce8;
+      --blue: #2563eb;
+      --green: #169342;
+      --purple: #7650e8;
+      --red: #d92d20;
+      --amber: #b76e00;
+      --bg: #f5f7fb;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font: 15px/1.45 Inter, Arial, sans-serif;
+    }
+    .sheet {
+      width: 297mm;
+      min-height: 210mm;
+      margin: 18px auto;
+      padding: 14mm;
+      background: white;
+      border: 1px solid #e5e7ef;
+      box-shadow: 0 10px 30px rgba(20, 32, 55, .08);
+      page-break-after: always;
+    }
+    .title {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 24px;
+      margin-bottom: 12px;
+      border-bottom: 2px solid var(--line);
+      padding-bottom: 8px;
+    }
+    h1, h2, h3 { margin: 0; }
+    h1 { font-size: 24px; }
+    h2 { font-size: 18px; }
+    h3 { font-size: 15px; margin-bottom: 8px; }
+    code { font-family: "JetBrains Mono", Menlo, Consolas, monospace; font-size: 12px; }
+    .grid {
+      display: grid;
+      grid-template-columns: 43% 57%;
+      gap: 14px;
+      align-items: start;
+    }
+    .concept {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      overflow: hidden;
+      background: #fff;
+    }
+    .concept img {
+      width: 100%;
+      display: block;
+    }
+    .impl {
+      display: grid;
+      gap: 10px;
+    }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 12px;
+      background: #fff;
+    }
+    .note {
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .ok { border-left: 5px solid var(--green); }
+    .warn { border-left: 5px solid var(--amber); }
+    .partial { border-left: 5px solid var(--blue); }
+    .gap { border-left: 5px solid var(--red); }
+    .flow {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }
+    .node {
+      border: 2px solid var(--blue);
+      border-radius: 10px;
+      padding: 9px 11px;
+      min-width: 84px;
+      text-align: center;
+      background: #eff6ff;
+      font-weight: 700;
+    }
+    .node.green { border-color: var(--green); background: #ecfdf3; }
+    .node.purple { border-color: var(--purple); background: #f3f0ff; }
+    .node.red { border-color: var(--red); background: #fff1f0; }
+    .node.amber { border-color: var(--amber); background: #fff8e8; }
+    .arrow {
+      color: #667085;
+      font-size: 22px;
+      line-height: 1;
+    }
+    .mini-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    .mini-table th,
+    .mini-table td {
+      border: 1px solid var(--line);
+      padding: 6px 7px;
+      vertical-align: top;
+    }
+    .mini-table th {
+      background: #eef2ff;
+      text-align: left;
+    }
+    .twocol {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .chip {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 4px 8px;
+      background: #f8fafc;
+      font-size: 12px;
+    }
+    .shot-row {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+    .shot {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      background: #fff;
+    }
+    .shot img { width: 100%; display: block; }
+    .shot span { display: block; padding: 6px 8px; font-size: 12px; color: var(--muted); }
+    .big-img {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      display: block;
+    }
+    @media print {
+      body {
+        background: white;
+        font-size: 12px;
+      }
+      .sheet {
+        width: 297mm;
+        height: 210mm;
+        min-height: 210mm;
+        margin: 0;
+        padding: 8mm;
+        border: 0;
+        box-shadow: none;
+        overflow: hidden;
+        break-after: page;
+      }
+      .title {
+        margin-bottom: 8px;
+        padding-bottom: 6px;
+      }
+      h1 { font-size: 19px; }
+      h2 { font-size: 15px; }
+      h3 { font-size: 13px; }
+      .grid {
+        grid-template-columns: 42% 58%;
+        gap: 9px;
+      }
+      .concept img {
+        max-height: 174mm;
+        object-fit: contain;
+        background: white;
+      }
+      .impl { gap: 7px; }
+      .card { padding: 8px; }
+      .mini-table { font-size: 10.5px; }
+      .mini-table th,
+      .mini-table td { padding: 4px 5px; }
+      .note, .chip, code { font-size: 10.5px; }
+      .node {
+        min-width: 64px;
+        padding: 6px 7px;
+        font-size: 11px;
+      }
+      .arrow { font-size: 16px; }
+      .big-img {
+        max-height: 98mm;
+        object-fit: contain;
+      }
+      .shot-row {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 5px;
+      }
+      .shot span { padding: 4px 5px; font-size: 10px; }
+      @page { size: A4 landscape; margin: 0; }
+    }
+  </style>
+</head>
+<body>
+
+<section class="sheet">
+  <div class="title">
+    <h1>1. Источники угроз и угрозы</h1>
+    <div class="note">PDF: таблицы S и ST → Реализация: справочники и каталог угроз</div>
+  </div>
+  <div class="grid">
+    <div class="concept"><img src="concept-pages/page-1.png" alt="Концепт: источники угроз и угрозы"></div>
+    <div class="impl">
+      <div class="card ok">
+        <h2>Реализовано напрямую</h2>
+        <table class="mini-table">
+          <tr><th>Концепт</th><th>В реализации</th><th>Где смотреть</th></tr>
+          <tr><td><b>S1..S4</b> источники</td><td><code>threat_sources</code>: 4 записи</td><td><code>migrations/007_threat_sources.up.sql</code></td></tr>
+          <tr><td><b>ST</b> угрозы</td><td><code>threats</code>: демо-угрозы + угрозы ФСТЭК</td><td><code>migrations/002_seed_data.up.sql</code>, <code>005_bdu_fstec_threats.up.sql</code></td></tr>
+          <tr><td>Индекс угрозы</td><td><code>threats.bdu_id</code>, <code>threats.q_threat</code>, <code>threats.q_severity</code></td><td><code>migrations/010_threat_q_fields.up.sql</code></td></tr>
+        </table>
+      </div>
+      <div class="card partial">
+        <h2>Как показать на листе</h2>
+        <p>Справа от исходной таблицы поставь компактную таблицу “Концепт → БД/API”. Для доказательства можно добавить кусок результата SQL:</p>
+        <div class="chips">
+          <span class="chip">S1 Конкуренты</span>
+          <span class="chip">S2 Недобросовестные партнёры</span>
+          <span class="chip">S3 Персонал</span>
+          <span class="chip">S4 Хакеры, мошенники</span>
+        </div>
+      </div>
+      <div class="card warn">
+        <h2>Что важно честно написать</h2>
+        <p>В PDF перечислены 8 базовых угроз <code>ST1..ST8</code>. В системе они не ограничены восьмёркой: есть демо-угрозы, угрозы ФСТЭК и поля для БДУ. SQLite-снапшот БДУ лежит в <code>data/bdu.sqlite</code>: 86 664 уязвимости, 715 615 записей ПО, 114 483 CVE.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sheet">
+  <div class="title">
+    <h1>2. Цепочка ST → VL → методы → DA</h1>
+    <div class="note">PDF: граф уязвимых звеньев → Реализация: AttackPath</div>
+  </div>
+  <div class="grid">
+    <div class="concept"><img src="concept-pages/page-2.png" alt="Концепт: ST VL controls DA"></div>
+    <div class="impl">
+      <div class="card ok">
+        <h2>Реальная структура графа</h2>
+        <div class="flow">
+          <div class="node">S<br><code>threat_sources</code></div>
+          <div class="arrow">→</div>
+          <div class="node purple">ST<br><code>threats</code></div>
+          <div class="arrow">→</div>
+          <div class="node green">VL<br><code>vulnerabilities</code></div>
+          <div class="arrow">→</div>
+          <div class="node amber">Control<br><code>controls</code></div>
+          <div class="arrow">↘</div>
+          <div class="node red">DA<br><code>destructive_actions</code></div>
+        </div>
+        <p class="note">Связи хранятся в <code>source_threats</code>, <code>threat_vulnerable_links</code>, <code>vulnerability_controls</code>, <code>threat_destructive_actions</code>.</p>
+      </div>
+      <div class="card partial">
+        <h2>Пример из живого API</h2>
+        <p><code>GET /api/risk/graph/1/1</code> для “Web Application Server” и “SQL Injection Attack” возвращает:</p>
+        <table class="mini-table">
+          <tr><th>Блок</th><th>Пример</th></tr>
+          <tr><td>Источники</td><td>S1 “Конкуренты”, S4 “Хакеры, мошенники”</td></tr>
+          <tr><td>VL</td><td>Unpatched Web Framework, Insufficient Input Validation</td></tr>
+          <tr><td>Controls</td><td>Regular Patch Management, Web Application Firewall</td></tr>
+          <tr><td>DA</td><td>DA1 “Копирование”, DA4 “Модификация”</td></tr>
+        </table>
+      </div>
+      <div class="card">
+        <h2>Что вставить как картинку</h2>
+        <p>Лучше всего: скрин страницы <code>http://localhost:3000/risk/graph/1</code>. Если скрин не нужен, оставь эту схему справа: она точнее отражает таблицы и API, чем исходный линейный рисунок.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sheet">
+  <div class="title">
+    <h1>3. Связи S → ST</h1>
+    <div class="note">PDF: источники применяют угрозы → Реализация: таблица связей</div>
+  </div>
+  <div class="grid">
+    <div class="concept"><img src="concept-pages/page-3.png" alt="Концепт: S to ST"></div>
+    <div class="impl">
+      <div class="card ok">
+        <h2>Как это сделано</h2>
+        <p>В коде нет “нарисованных линий”. Линии из PDF стали строками в junction-таблице:</p>
+        <p><code>source_threats(threat_source_id, threat_id)</code></p>
+        <p>Первичный seed: <code>migrations/010_threat_q_fields.up.sql</code>. Дополнение для демо-графа: <code>migrations/011_seed_risk_graph_links.up.sql</code>.</p>
+      </div>
+      <div class="card">
+        <h2>Схема для вставки</h2>
+        <div class="flow">
+          <div class="node">S1<br>Конкуренты</div>
+          <div class="arrow">→</div>
+          <div class="node purple">SQL Injection<br>DDoS<br>Phishing</div>
+        </div>
+        <div class="flow">
+          <div class="node">S3<br>Персонал</div>
+          <div class="arrow">→</div>
+          <div class="node purple">Insider Data Leak</div>
+        </div>
+        <div class="flow">
+          <div class="node">S4<br>Хакеры</div>
+          <div class="arrow">→</div>
+          <div class="node purple">SQL Injection<br>Ransomware<br>DDoS<br>Brute Force</div>
+        </div>
+      </div>
+      <div class="card partial">
+        <h2>Как подписать</h2>
+        <p>“Перекрещенные линии концепта в реализации нормализованы в таблицу связей. Это позволяет хранить любое число источников и угроз, а не фиксированную картинку.”</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sheet">
+  <div class="title">
+    <h1>4. VL, методы противодействия и DA</h1>
+    <div class="note">PDF: справочники VL/Controls/DA → Реализация: справочники БД</div>
+  </div>
+  <div class="grid">
+    <div class="concept"><img src="concept-pages/page-4.png" alt="Концепт: VL controls DA"></div>
+    <div class="impl">
+      <div class="card ok">
+        <h2>Сопоставление справочников</h2>
+        <table class="mini-table">
+          <tr><th>Концепт</th><th>В реализации</th><th>Комментарий</th></tr>
+          <tr><td>VL1..VL7</td><td><code>vulnerabilities</code>, <code>asset_vulnerabilities</code></td><td>В демо-базе 5 VL, в SQLite БДУ 86 664 уязвимости.</td></tr>
+          <tr><td>A, FW, HP, DZ, IDS, AD, R, L, TE, DS, DD</td><td><code>controls</code>, <code>asset_controls</code>, <code>vulnerability_controls</code></td><td>Хранятся как именованные меры, не только аббревиатуры.</td></tr>
+          <tr><td>DA1..DA7</td><td><code>destructive_actions</code></td><td>7 действий заведены ровно по концепции.</td></tr>
+        </table>
+      </div>
+      <div class="card">
+        <h2>DA реализованы один в один</h2>
+        <div class="chips">
+          <span class="chip">DA1 копирование</span>
+          <span class="chip">DA2 перехват</span>
+          <span class="chip">DA3 уничтожение</span>
+          <span class="chip">DA4 модификация</span>
+          <span class="chip">DA5 блокирование</span>
+          <span class="chip">DA6 хищение</span>
+          <span class="chip">DA7 нарушение работоспособности</span>
+        </div>
+      </div>
+      <div class="card warn">
+        <h2>Что лучше не скрывать</h2>
+        <p>Аббревиатуры методов из PDF не перенесены в интерфейс как отдельные коды. В реализации они представлены через реальные controls: WAF, patch management, database access control, network segmentation, backup, IDS, training.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sheet">
+  <div class="title">
+    <h1>5. Полная модель выявления уязвимостей ПТСЗИ</h1>
+    <div class="note">PDF: общая модель → Реализация: API + RiskGraphPage</div>
+  </div>
+  <div class="grid">
+    <div class="concept"><img src="concept-pages/page-5.png" alt="Концепт: полная модель ПТСЗИ"></div>
+    <div class="impl">
+      <div class="card ok">
+        <h2>Главный объект реализации</h2>
+        <p><code>AttackPath</code> в <code>internal/domain/risk_graph.go</code> собирает всё, что на рисунке разложено блоками:</p>
+        <table class="mini-table">
+          <tr><th>Поле</th><th>Что содержит</th></tr>
+          <tr><td><code>sources</code></td><td>S1..S4 для угрозы</td></tr>
+          <tr><td><code>vulnerable_links</code></td><td>VL + controls + признак uncovered</td></tr>
+          <tr><td><code>destructive_actions</code></td><td>DA1..DA7, связанные с угрозой</td></tr>
+          <tr><td><code>w, q_threat, q_severity, q_reaction, z</code></td><td>расчет по формуле ПТСЗИ</td></tr>
+        </table>
+      </div>
+      <div class="card partial">
+        <h2>Где это увидеть</h2>
+        <p>API: <code>GET /api/risk/graph/:asset_id/:threat_id</code>.</p>
+        <p>UI: <code>http://localhost:3000/risk/graph/1</code>.</p>
+        <p class="note">Для листа диплома лучше вставить не весь JSON, а скрин UI или схему с колонками S → ST → VL → Control → DA.</p>
+      </div>
+      <div class="card">
+        <h2>Схема реализации</h2>
+        <div class="flow">
+          <div class="node">Asset</div>
+          <div class="arrow">+</div>
+          <div class="node purple">Threat</div>
+          <div class="arrow">→</div>
+          <div class="node green">LoadAttackPath</div>
+          <div class="arrow">→</div>
+          <div class="node amber">Q reaction</div>
+          <div class="arrow">→</div>
+          <div class="node red">W + level</div>
+        </div>
+        <p class="note">Файлы: <code>risk_graph_repository.go</code>, <code>service.go</code>, <code>calculator_v2.go</code>, <code>RiskGraphPage.tsx</code>.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sheet">
+  <div class="title">
+    <h1>6. Формула W</h1>
+    <div class="note">PDF: формула → Реализация: calculator_v2.go</div>
+  </div>
+  <div class="grid">
+    <div class="concept"><img src="concept-pages/page-6.png" alt="Концепт: формула W"></div>
+    <div class="impl">
+      <div class="card ok">
+        <h2>Формула реализована</h2>
+        <p><code>W = (Q_threat + q_severity + (1 - Q_reaction)) / 3 * Z</code></p>
+        <table class="mini-table">
+          <tr><th>Параметр</th><th>Откуда берется</th><th>Файл</th></tr>
+          <tr><td><code>Q_threat</code></td><td><code>threats.q_threat</code></td><td><code>calculator_v2.go</code></td></tr>
+          <tr><td><code>q_severity</code></td><td><code>threats.q_severity</code></td><td><code>calculator_v2.go</code></td></tr>
+          <tr><td><code>Q_reaction</code></td><td>доля VL, закрытых внедренными controls</td><td><code>risk_graph_repository.go</code></td></tr>
+          <tr><td><code>Z</code></td><td><code>asset.environment</code> и <code>asset.is_isolated</code></td><td><code>calculator_v2.go</code></td></tr>
+        </table>
+      </div>
+      <div class="card">
+        <h2>Готовая картинка</h2>
+        <img class="big-img" src="../формула.png" alt="Реализация формулы">
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sheet">
+  <div class="title">
+    <h1>7. Структурно-функциональная схема</h1>
+    <div class="note">PDF: процесс системы → Реализация: поток данных CyberRisk</div>
+  </div>
+  <div class="grid">
+    <div class="concept"><img src="concept-pages/page-7.png" alt="Концепт: структурно-функциональная схема"></div>
+    <div class="impl">
+      <div class="card ok">
+        <h2>Как заменить концептуальную схему</h2>
+        <div class="flow">
+          <div class="node">Ввод актива</div>
+          <div class="arrow">→</div>
+          <div class="node green">ПО и данные</div>
+          <div class="arrow">→</div>
+          <div class="node purple">БДУ/ФСТЭК/Минцифры</div>
+          <div class="arrow">→</div>
+          <div class="node amber">Оценка риска</div>
+          <div class="arrow">→</div>
+          <div class="node red">Отчет и рекомендации</div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Готовая картинка архитектуры</h2>
+        <img class="big-img" src="../архитектура.png" alt="Архитектура CyberRisk">
+      </div>
+      <div class="card partial">
+        <h2>Подпись к листу</h2>
+        <p>“БД требований” из концепции разнесена на PostgreSQL для рабочей модели и SQLite-снапшот БДУ ФСТЭК для внешних справочников. Отчетность и рекомендации реализованы как сервисные слои и UI-страницы.”</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sheet">
+  <div class="title">
+    <h1>8. Результаты работы программного комплекса</h1>
+    <div class="note">PDF: выходные результаты → Реализация: экраны приложения</div>
+  </div>
+  <div class="grid">
+    <div class="concept"><img src="concept-pages/page-8.png" alt="Концепт: результаты комплекса"></div>
+    <div class="impl">
+      <div class="card ok">
+        <h2>Что показать скринами</h2>
+        <div class="shot-row">
+          <div class="shot"><img src="../screenshots/assets.png" alt="Активы"><span>Реестр активов: исходные данные пользователя</span></div>
+          <div class="shot"><img src="../screenshots/software.png" alt="ПО"><span>Справочник ПО: Минцифры/каталог ПО</span></div>
+          <div class="shot"><img src="../screenshots/risk-map.png" alt="Карта рисков"><span>Карта рисков: результат оценки</span></div>
+          <div class="shot"><img src="../screenshots/risk-simulator.png" alt="Симулятор"><span>Симулятор риска: расчет сценария</span></div>
+        </div>
+      </div>
+      <div class="card partial">
+        <h2>Как связать с PDF</h2>
+        <table class="mini-table">
+          <tr><th>PDF-блок</th><th>Экран/модуль</th></tr>
+          <tr><td>Модель угроз ИБ</td><td><code>/risk/graph/:assetId</code>, <code>/risk/map</code></td></tr>
+          <tr><td>Мероприятия защиты</td><td><code>controls</code>, рекомендации, симулятор</td></tr>
+          <tr><td>Орг.-тех. документация</td><td>PDF-отчет по сценарию риска</td></tr>
+          <tr><td>Рекомендации</td><td><code>recommendations.go</code>, <code>recommendation_templates</code></td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>

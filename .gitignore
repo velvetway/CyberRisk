@@ -42,7 +42,8 @@ logs/
 Thumbs.db
 
 # Frontend
-frontend/node_modules/
+# без слэша — чтобы ловились и симлинки на внешние кэши, не только каталоги
+node_modules
 frontend/build/
 frontend/dist/
 frontend/.pnp
