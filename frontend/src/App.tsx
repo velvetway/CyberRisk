@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation, useParams, Navigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 
 import { AuthProvider, useAuth } from "./context/AuthContext";
@@ -11,12 +11,7 @@ import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { AssetsPage } from "./pages/AssetsPage";
 import { AssetFormPage } from "./pages/AssetFormPage";
-import { AssetRiskProfilePage } from "./pages/AssetRiskProfilePage";
-import { SoftwareCatalogPage } from "./pages/SoftwareCatalogPage";
-import { RiskPreviewPage } from "./pages/RiskPreviewPage";
-import { RiskMapPage } from "./pages/RiskMapPage";
-import { RiskGraphPage } from "./pages/RiskGraphPage";
-import { DashboardPage } from "./pages/DashboardPage";
+import { PtsziModelPage } from "./pages/PtsziModelPage";
 
 type Theme = 'dark' | 'light';
 type Accent = 'indigo' | 'cyan' | 'emerald' | 'amber' | 'crimson';
@@ -106,6 +101,12 @@ const LayoutGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return <PageShell>{children}</PageShell>;
 };
 
+const AssetPTSZIForward: React.FC = () => {
+  const { id, assetId } = useParams<{ id?: string; assetId?: string }>();
+  const target = id || assetId;
+  return <Navigate to={target ? `/ptszi/model?asset=${target}` : "/ptszi/model"} replace />;
+};
+
 // ProtectedRoute kept referenced so tree-shaking doesn't warn on unused import.
 void ProtectedRoute;
 
@@ -116,15 +117,17 @@ function RoutedApp() {
       <Route path="/register" element={<RegisterPage />} />
 
       {/* Protected pages wrapped in PageShell */}
-      <Route path="/" element={<LayoutGuard><DashboardPage /></LayoutGuard>} />
+      <Route path="/" element={<Navigate to="/ptszi/model" replace />} />
       <Route path="/assets" element={<LayoutGuard><AssetsPage /></LayoutGuard>} />
       <Route path="/assets/new" element={<LayoutGuard><AssetFormPage /></LayoutGuard>} />
       <Route path="/assets/edit/:id" element={<LayoutGuard><AssetFormPage /></LayoutGuard>} />
-      <Route path="/assets/:id/risks" element={<LayoutGuard><AssetRiskProfilePage /></LayoutGuard>} />
-      <Route path="/software" element={<LayoutGuard><SoftwareCatalogPage /></LayoutGuard>} />
-      <Route path="/risk/preview" element={<LayoutGuard><RiskPreviewPage /></LayoutGuard>} />
-      <Route path="/risk/map" element={<LayoutGuard><RiskMapPage /></LayoutGuard>} />
-      <Route path="/risk/graph/:assetId" element={<LayoutGuard><RiskGraphPage /></LayoutGuard>} />
+      <Route path="/assets/:id/risks" element={<LayoutGuard><AssetPTSZIForward /></LayoutGuard>} />
+      <Route path="/software" element={<Navigate to="/ptszi/model" replace />} />
+      <Route path="/risk/preview" element={<Navigate to="/ptszi/model" replace />} />
+      <Route path="/risk/map" element={<Navigate to="/ptszi/model" replace />} />
+      <Route path="/ptszi/model" element={<LayoutGuard><PtsziModelPage /></LayoutGuard>} />
+      <Route path="/risk/graph" element={<Navigate to="/ptszi/model" replace />} />
+      <Route path="/risk/graph/:assetId" element={<LayoutGuard><AssetPTSZIForward /></LayoutGuard>} />
       <Route path="*" element={<LayoutGuard><AssetsPage /></LayoutGuard>} />
     </Routes>
   );

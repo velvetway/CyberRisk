@@ -9,13 +9,23 @@ import {
     SoftwareCategory,
     AssetSoftwareAlternative,
 } from "../types";
+import {
+    PtsziAssetProfile,
+    PtsziAttackPath,
+    PtsziControl,
+    PtsziThreat,
+    PtsziUBIThreat,
+    PtsziVulnerableLink,
+    ThreatSource,
+    DestructiveAction,
+} from "../types/ptszi";
 
 function getToken(): string | null {
     return localStorage.getItem("token");
 }
 
 /** Drop-in replacement for fetch() that adds Authorization header */
-export function authFetch(input: string, init?: RequestInit): Promise<Response> {
+export async function authFetch(input: string, init?: RequestInit): Promise<Response> {
     const token = getToken();
     const headers: Record<string, string> = {
         "Content-Type": "application/json",
@@ -24,7 +34,14 @@ export function authFetch(input: string, init?: RequestInit): Promise<Response> 
     if (token) {
         headers["Authorization"] = `Bearer ${token}`;
     }
-    return fetch(input, { ...init, headers });
+    const res = await fetch(input, { ...init, headers });
+    if (res.status === 401) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        window.dispatchEvent(new Event("auth:logout"));
+        throw new Error("Сессия истекла. Войдите снова.");
+    }
+    return res;
 }
 
 async function request<T>(input: string, init?: RequestInit): Promise<T> {
@@ -202,5 +219,60 @@ export const api = {
         if (params.russian) query.set("russian", "true");
         if (params.certified) query.set("certified", "true");
         return request<Software[]>(`/api/software?${query.toString()}`);
+    },
+
+    // Canonical PTSZI model
+    getPtsziSources(): Promise<ThreatSource[]> {
+        return request<ThreatSource[]>("/api/ptszi/sources");
+    },
+
+    getPtsziThreats(): Promise<PtsziThreat[]> {
+        return request<PtsziThreat[]>("/api/ptszi/threats");
+    },
+
+    getPtsziVulnerableLinks(): Promise<PtsziVulnerableLink[]> {
+        return request<PtsziVulnerableLink[]>("/api/ptszi/vulnerable-links");
+    },
+
+    getPtsziControls(): Promise<PtsziControl[]> {
+        return request<PtsziControl[]>("/api/ptszi/controls");
+    },
+
+    getPtsziDestructiveActions(): Promise<DestructiveAction[]> {
+        return request<DestructiveAction[]>("/api/ptszi/destructive-actions");
+    },
+
+    getPtsziUBI(params?: { limit?: number; offset?: number; q?: string }): Promise<PtsziUBIThreat[]> {
+        const query = new URLSearchParams();
+        if (params?.limit) query.set("limit", String(params.limit));
+        if (params?.offset) query.set("offset", String(params.offset));
+        if (params?.q) query.set("q", params.q);
+        return request<PtsziUBIThreat[]>(`/api/ptszi/ubi?${query.toString()}`);
+    },
+
+    getAssetPtsziProfile(assetId: number): Promise<PtsziAssetProfile> {
+        return request<PtsziAssetProfile>(`/api/assets/${assetId}/ptszi/profile`);
+    },
+
+    updateAssetPtsziVulnerableLinks(assetId: number, ids: number[]): Promise<void> {
+        return request<void>(`/api/assets/${assetId}/ptszi/vulnerable-links`, {
+            method: "PUT",
+            body: JSON.stringify({ vulnerable_link_ids: ids }),
+        });
+    },
+
+    updateAssetPtsziControls(assetId: number, controls: Array<{ control_id: number; effectiveness: number }>): Promise<void> {
+        return request<void>(`/api/assets/${assetId}/ptszi/controls`, {
+            method: "PUT",
+            body: JSON.stringify({ controls }),
+        });
+    },
+
+    getApplicablePtsziThreats(assetId: number): Promise<PtsziAttackPath[]> {
+        return request<PtsziAttackPath[]>(`/api/ptszi/assets/${assetId}/threats`);
+    },
+
+    getPtsziGraph(assetId: number, threatId: number): Promise<PtsziAttackPath> {
+        return request<PtsziAttackPath>(`/api/ptszi/graph/${assetId}/${threatId}`);
     },
 };

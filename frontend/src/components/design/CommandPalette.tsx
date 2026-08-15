@@ -42,14 +42,12 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ open, onClose })
   }, [open, onClose]);
 
   const all: PaletteItem[] = [
-    ...NAV_ITEMS.map<PaletteItem>((i) => ({
+    ...NAV_ITEMS.filter((i) => !i.hidden).map<PaletteItem>((i) => ({
       type: 'Переход',
       label: i.label,
       path: i.path,
       icon: i.icon,
     })),
-    { type: 'Действие', label: 'Рассчитать риск (что-если)', path: '/risk/preview', icon: 'zap' },
-    { type: 'Действие', label: 'Экспортировать PDF-отчёт',   path: '/reports',      icon: 'download' },
     { type: 'Действие', label: 'Добавить актив',             path: '/assets/new',   icon: 'plus' },
   ];
 

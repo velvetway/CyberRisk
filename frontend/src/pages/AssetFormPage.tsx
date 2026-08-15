@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { authFetch } from "../api/client";
+import { api, authFetch } from "../api/client";
 import { DataCategory, ProtectionLevel, KIICategory } from "../types";
+import { PtsziControl, PtsziVulnerableLink } from "../types/ptszi";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
 import { Save, X, Info, ShieldAlert, Server } from "lucide-react";
@@ -20,6 +21,7 @@ interface AssetFormData {
     personal_data_volume: string;
     has_internet_access: boolean;
     is_isolated: boolean;
+    security_contour: "external" | "internal";
 }
 
 const initialFormData: AssetFormData = {
@@ -36,6 +38,29 @@ const initialFormData: AssetFormData = {
     personal_data_volume: "",
     has_internet_access: true,
     is_isolated: false,
+    security_contour: "external",
+};
+
+const defaultVLByType: Record<string, string[]> = {
+    server: ["VL2", "VL6", "VL7"],
+    database: ["VL2", "VL4", "VL6"],
+    application: ["VL2", "VL3", "VL7"],
+    network: ["VL6", "VL7"],
+    workstation: ["VL1", "VL2", "VL3", "VL5", "VL6"],
+    mobile: ["VL2", "VL3", "VL5"],
+    iot: ["VL2", "VL6", "VL7"],
+    cloud: ["VL2", "VL6", "VL7"],
+};
+
+const defaultControlsByType: Record<string, string[]> = {
+    server: ["FW", "IDS", "AD"],
+    database: ["AD", "R", "L"],
+    application: ["FW", "AD"],
+    network: ["FW", "IDS"],
+    workstation: ["A", "AD"],
+    mobile: ["AD"],
+    iot: ["FW"],
+    cloud: ["FW", "IDS", "AD"],
 };
 
 const calculateCriticality = (form: AssetFormData): number => {
@@ -119,12 +144,36 @@ export const AssetFormPage: React.FC = () => {
     const isEditMode = !!id;
 
     const [formData, setFormData] = useState<AssetFormData>(initialFormData);
+    const [allVL, setAllVL] = useState<PtsziVulnerableLink[]>([]);
+    const [allControls, setAllControls] = useState<PtsziControl[]>([]);
+    const [vlIDs, setVlIDs] = useState<number[]>([]);
+    const [controlIDs, setControlIDs] = useState<number[]>([]);
     const [loading, setLoading] = useState(false);
     const [loadingData, setLoadingData] = useState(isEditMode);
 
     useEffect(() => {
+        Promise.all([api.getPtsziVulnerableLinks(), api.getPtsziControls()])
+            .then(([links, controls]) => {
+                setAllVL(links);
+                setAllControls(controls);
+                if (!isEditMode) {
+                    setVlIDs(idsByCode(links, defaultVLByType[initialFormData.type] || []));
+                    setControlIDs(idsByCode(controls, defaultControlsByType[initialFormData.type] || []));
+                }
+            })
+            .catch(e => toast.error(e.message || "Ошибка загрузки справочников ПТСЗИ"));
         if (isEditMode && id) fetchAsset(id);
     }, [id, isEditMode]);
+
+    useEffect(() => {
+        if (isEditMode || allVL.length === 0 || allControls.length === 0) return;
+        setFormData(prev => ({
+            ...prev,
+            security_contour: prev.has_internet_access && !prev.is_isolated ? "external" : "internal",
+        }));
+        setVlIDs(idsByCode(allVL, defaultVLByType[formData.type] || []));
+        setControlIDs(idsByCode(allControls, defaultControlsByType[formData.type] || []));
+    }, [formData.type, formData.has_internet_access, formData.is_isolated, isEditMode, allVL, allControls]);
 
     const fetchAsset = async (assetId: string) => {
         setLoadingData(true);
@@ -146,7 +195,15 @@ export const AssetFormPage: React.FC = () => {
                 personal_data_volume: asset.personal_data_volume || "",
                 has_internet_access: asset.has_internet_access ?? true,
                 is_isolated: asset.is_isolated || false,
+                security_contour: asset.security_contour || (asset.has_internet_access && !asset.is_isolated ? "external" : "internal"),
             });
+            try {
+                const profile = await api.getAssetPtsziProfile(Number(assetId));
+                setVlIDs(profile.vulnerable_links.map(v => v.vulnerable_link.id));
+                setControlIDs(profile.controls.map(c => c.control.id));
+            } catch {
+                // Профиль можно заполнить заново в форме.
+            }
         } catch (e: any) {
             toast.error(e.message || "Ошибка загрузки данных актива");
         } finally {
@@ -158,6 +215,10 @@ export const AssetFormPage: React.FC = () => {
         const { name, value, type } = e.target;
         const checked = (e.target as HTMLInputElement).checked;
         setFormData((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
+    };
+
+    const toggle = (id: number, values: number[], setValues: (v: number[]) => void) => {
+        setValues(values.includes(id) ? values.filter(x => x !== id) : [...values, id]);
     };
 
     const calculatedCriticality = calculateCriticality(formData);
@@ -190,6 +251,7 @@ export const AssetFormPage: React.FC = () => {
                 personal_data_volume: formData.personal_data_volume || undefined,
                 has_internet_access: formData.has_internet_access,
                 is_isolated: formData.is_isolated,
+                security_contour: formData.security_contour,
             };
 
             const res = await authFetch(url, {
@@ -198,8 +260,14 @@ export const AssetFormPage: React.FC = () => {
             });
 
             if (!res.ok) throw new Error(`Ошибка ${isEditMode ? "обновления" : "создания"}`);
+            const savedAsset = await res.json();
+            const savedID = Number(savedAsset.id || id);
+            if (savedID) {
+                await api.updateAssetPtsziVulnerableLinks(savedID, vlIDs);
+                await api.updateAssetPtsziControls(savedID, controlIDs.map(control_id => ({ control_id, effectiveness: 1 })));
+            }
             toast.success(isEditMode ? "Актив обновлен" : "Актив создан");
-            navigate("/assets");
+            navigate(`/ptszi/model?asset=${savedID}`);
         } catch (e: any) {
             toast.error(e.message || `Ошибка при сохранении`);
         } finally {
@@ -368,6 +436,53 @@ export const AssetFormPage: React.FC = () => {
                         </div>
                     </div>
 
+                    <div style={{ marginBottom: "32px" }}>
+                        <h3 style={{ fontSize: "16px", marginBottom: "20px", paddingBottom: "10px", borderBottom: "1px solid var(--perimeter)", display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <ShieldAlert size={18} color="var(--command)" /> Профиль ПТСЗИ
+                        </h3>
+
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "20px" }}>
+                            <div>
+                                <label className="form-label">Контур актива</label>
+                                <select name="security_contour" value={formData.security_contour} onChange={handleChange} className="form-input">
+                                    <option value="external">Внешний контур</option>
+                                    <option value="internal">Внутренний контур</option>
+                                </select>
+                            </div>
+                            <div style={{ padding: "14px 16px", background: "var(--well)", borderRadius: "var(--r-md)", border: "1px solid var(--perimeter)", fontSize: "13px", color: "var(--ink-muted)" }}>
+                                Эти данные используются в графе атаки: без выбранных VL у нового актива не будет применимых сценариев.
+                            </div>
+                        </div>
+
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
+                            <div style={{ padding: "16px", background: "var(--well)", borderRadius: "var(--r-md)", border: "1px solid var(--perimeter)" }}>
+                                <div style={{ fontWeight: 600, marginBottom: 10 }}>Уязвимые звенья актива</div>
+                                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                    {allVL.map(v => (
+                                        <label key={v.id} style={{ display: "grid", gridTemplateColumns: "18px 44px 1fr", gap: 8, alignItems: "start", fontSize: "13px", cursor: "pointer" }}>
+                                            <input type="checkbox" checked={vlIDs.includes(v.id)} onChange={() => toggle(v.id, vlIDs, setVlIDs)} />
+                                            <span className="mono" style={{ color: "var(--command)" }}>{v.code}</span>
+                                            <span>{v.name}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div style={{ padding: "16px", background: "var(--well)", borderRadius: "var(--r-md)", border: "1px solid var(--perimeter)" }}>
+                                <div style={{ fontWeight: 600, marginBottom: 10 }}>Внедренные методы защиты</div>
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                                    {allControls.map(c => (
+                                        <label key={c.id} style={{ display: "flex", gap: 7, alignItems: "center", fontSize: "13px", cursor: "pointer" }}>
+                                            <input type="checkbox" checked={controlIDs.includes(c.id)} onChange={() => toggle(c.id, controlIDs, setControlIDs)} />
+                                            <span className="mono" style={{ color: "var(--command)" }}>{c.code}</span>
+                                            <span>{c.name}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     {/* Расчет */}
                     <div style={{ marginBottom: "32px", padding: "20px", background: "var(--command-dim)", borderRadius: "var(--r-md)", border: "1px solid var(--command)", display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <div>
@@ -396,3 +511,8 @@ export const AssetFormPage: React.FC = () => {
         </motion.div>
     );
 };
+
+function idsByCode<T extends { id: number; code: string }>(items: T[], codes: string[]): number[] {
+    const codeSet = new Set(codes);
+    return items.filter(item => codeSet.has(item.code)).map(item => item.id);
+}

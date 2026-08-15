@@ -24,9 +24,11 @@ export const TopBar: React.FC<TopBarProps> = ({ breadcrumbs, onCmdK, onThemeTogg
   let username = 'И. Петров';
   let role = 'CISO · ADMIN';
   let initials = 'ИП';
+  let logout: (() => void) | null = null;
   try {
     // eslint-disable-next-line react-hooks/rules-of-hooks
-    const { user } = useAuth();
+    const { user, logout: authLogout } = useAuth();
+    logout = authLogout;
     if (user) {
       username = user.username;
       initials = user.username.slice(0, 2).toUpperCase();
@@ -168,6 +170,15 @@ export const TopBar: React.FC<TopBarProps> = ({ breadcrumbs, onCmdK, onThemeTogg
           </div>
         </div>
       </div>
+      <IconBtn
+        onClick={() => {
+          logout?.();
+          window.location.href = '/login';
+        }}
+        title="Выйти"
+      >
+        <Icon name="logout" size={15} />
+      </IconBtn>
     </div>
   );
 };

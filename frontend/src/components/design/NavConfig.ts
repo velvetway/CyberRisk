@@ -11,19 +11,20 @@ export interface NavItem {
   icon: IconName;
   badge?: string | null;
   section: NavSection;
+  hidden?: boolean;
 }
 
 export const NAV_ITEMS: NavItem[] = [
-  { id: 'dashboard', path: '/',                label: 'Обзор',            icon: 'grid',     badge: null,  section: 'main' },
-  { id: 'riskmap',   path: '/risk/map',        label: 'Карта рисков',     icon: 'target',   badge: '5×5', section: 'main' },
-  { id: 'graph',     path: '/risk/graph',      label: 'Граф атаки',       icon: 'flow',     badge: null,  section: 'main' },
+  { id: 'dashboard', path: '/',                label: 'Обзор',            icon: 'grid',     badge: null,  section: 'main', hidden: true },
+  { id: 'riskmap',   path: '/risk/map',        label: 'Карта рисков',     icon: 'target',   badge: '5×5', section: 'main', hidden: true },
+  { id: 'graph',     path: '/ptszi/model',     label: 'Граф атаки',       icon: 'flow',     badge: 'W',   section: 'main' },
   { id: 'assets',    path: '/assets',          label: 'Реестр активов',   icon: 'layers',   badge: null,  section: 'main' },
-  { id: 'software',  path: '/software',        label: 'Справочник ПО',    icon: 'package',  badge: null,  section: 'main' },
-  { id: 'simulator', path: '/risk/preview',    label: 'Симулятор риска',  icon: 'zap',      badge: 'NEW', section: 'main' },
-  { id: 'threats',   path: '/threats',         label: 'Каталог угроз',    icon: 'alert',    badge: 'БДУ', section: 'refs' },
-  { id: 'vulns',     path: '/vulnerabilities', label: 'Уязвимости',       icon: 'activity', badge: null,  section: 'refs' },
-  { id: 'reports',   path: '/reports',         label: 'Отчёты',           icon: 'file',     badge: null,  section: 'refs' },
-  { id: 'settings',  path: '/settings',        label: 'Настройки',        icon: 'settings', badge: null,  section: 'system' },
+  { id: 'software',  path: '/software',        label: 'Справочник ПО',    icon: 'package',  badge: null,  section: 'main', hidden: true },
+  { id: 'simulator', path: '/risk/preview',    label: 'Симулятор риска',  icon: 'zap',      badge: 'NEW', section: 'main', hidden: true },
+  { id: 'threats',   path: '/threats',         label: 'Каталог угроз',    icon: 'alert',    badge: 'БДУ', section: 'refs', hidden: true },
+  { id: 'vulns',     path: '/vulnerabilities', label: 'Уязвимости',       icon: 'activity', badge: null,  section: 'refs', hidden: true },
+  { id: 'reports',   path: '/reports',         label: 'Отчёты',           icon: 'file',     badge: null,  section: 'refs', hidden: true },
+  { id: 'settings',  path: '/settings',        label: 'Настройки',        icon: 'settings', badge: null,  section: 'system', hidden: true },
 ];
 
 /**

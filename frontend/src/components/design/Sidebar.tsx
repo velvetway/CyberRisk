@@ -18,9 +18,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggleCollapsed }
   const activeItem = findActiveNavItem(location.pathname);
   const activeId = activeItem?.id;
 
-  const main = NAV_ITEMS.filter((i) => i.section === 'main');
-  const refs = NAV_ITEMS.filter((i) => i.section === 'refs');
-  const sys = NAV_ITEMS.filter((i) => i.section === 'system');
+  const visibleItems = NAV_ITEMS.filter((i) => !i.hidden);
+  const main = visibleItems.filter((i) => i.section === 'main');
+  const refs = visibleItems.filter((i) => i.section === 'refs');
+  const sys = visibleItems.filter((i) => i.section === 'system');
 
   const renderItem = (item: NavItem) => {
     const isActive = item.id === activeId;
@@ -75,7 +76,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggleCollapsed }
           />
         )}
         <Icon name={item.icon} size={16} />
-        {!collapsed && (
+        {refs.length > 0 && !collapsed && (
           <>
             <span style={{ flex: 1 }}>{item.label}</span>
             {item.badge && (
@@ -227,10 +228,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggleCollapsed }
             Справочники
           </div>
         )}
-        {collapsed && <div style={{ height: 1, background: 'var(--border)', margin: '10px 4px' }} />}
+        {refs.length > 0 && collapsed && <div style={{ height: 1, background: 'var(--border)', margin: '10px 4px' }} />}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>{refs.map(renderItem)}</div>
 
-        {!collapsed && (
+        {sys.length > 0 && !collapsed && (
           <div
             style={{
               fontSize: 'var(--text-2xs)',
@@ -244,7 +245,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggleCollapsed }
             Система
           </div>
         )}
-        {collapsed && <div style={{ height: 1, background: 'var(--border)', margin: '10px 4px' }} />}
+        {sys.length > 0 && collapsed && <div style={{ height: 1, background: 'var(--border)', margin: '10px 4px' }} />}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>{sys.map(renderItem)}</div>
       </nav>
 

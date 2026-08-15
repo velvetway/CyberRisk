@@ -40,6 +40,7 @@ export interface Asset {
     personal_data_volume?: string;
     has_internet_access?: boolean;
     is_isolated?: boolean;
+    security_contour?: "external" | "internal";
     created_at: string;
     updated_at: string;
 }
