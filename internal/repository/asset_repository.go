@@ -32,6 +32,7 @@ func NewAssetRepository(pool *pgxpool.Pool) AssetRepository {
 }
 
 func (r *assetRepository) Create(ctx context.Context, a *domain.Asset) error {
+	ensureSecurityContour(a)
 	const q = `
 INSERT INTO assets (
     name,
@@ -52,9 +53,10 @@ INSERT INTO assets (
     has_personal_data,
     personal_data_volume,
     has_internet_access,
-    is_isolated
+    is_isolated,
+    security_contour
 ) VALUES (
-    $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19
+    $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20
 ) RETURNING
     id,
     created_at,
@@ -80,6 +82,7 @@ INSERT INTO assets (
 		a.PersonalDataVolume,
 		a.HasInternetAccess,
 		a.IsIsolated,
+		a.SecurityContour,
 	)
 
 	if err := row.Scan(&a.ID, &a.CreatedAt, &a.UpdatedAt); err != nil {
@@ -112,6 +115,7 @@ SELECT
     personal_data_volume,
     has_internet_access,
     is_isolated,
+    security_contour,
     created_at,
     updated_at
 FROM assets
@@ -139,6 +143,7 @@ WHERE id = $1
 		&a.PersonalDataVolume,
 		&a.HasInternetAccess,
 		&a.IsIsolated,
+		&a.SecurityContour,
 		&a.CreatedAt,
 		&a.UpdatedAt,
 	)
@@ -182,6 +187,7 @@ SELECT
     personal_data_volume,
     has_internet_access,
     is_isolated,
+    security_contour,
     created_at,
     updated_at
 FROM assets
@@ -218,6 +224,7 @@ LIMIT $1 OFFSET $2
 			&a.PersonalDataVolume,
 			&a.HasInternetAccess,
 			&a.IsIsolated,
+			&a.SecurityContour,
 			&a.CreatedAt,
 			&a.UpdatedAt,
 		); err != nil {
@@ -234,6 +241,7 @@ LIMIT $1 OFFSET $2
 }
 
 func (r *assetRepository) Update(ctx context.Context, a *domain.Asset) error {
+	ensureSecurityContour(a)
 	const q = `
 UPDATE assets
 SET
@@ -256,8 +264,9 @@ SET
     personal_data_volume = $17,
     has_internet_access = $18,
     is_isolated = $19,
+    security_contour = $20,
     updated_at = now()
-WHERE id = $20
+WHERE id = $21
 RETURNING updated_at
 `
 	row := r.pool.QueryRow(ctx, q,
@@ -280,6 +289,7 @@ RETURNING updated_at
 		a.PersonalDataVolume,
 		a.HasInternetAccess,
 		a.IsIsolated,
+		a.SecurityContour,
 		a.ID,
 	)
 
@@ -291,6 +301,17 @@ RETURNING updated_at
 	}
 
 	return nil
+}
+
+func ensureSecurityContour(a *domain.Asset) {
+	if a.SecurityContour == "external" || a.SecurityContour == "internal" {
+		return
+	}
+	if a.HasInternetAccess && !a.IsIsolated {
+		a.SecurityContour = "external"
+		return
+	}
+	a.SecurityContour = "internal"
 }
 
 func (r *assetRepository) Delete(ctx context.Context, id int64) error {

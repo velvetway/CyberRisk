@@ -52,6 +52,7 @@ type AssetResponse struct {
 	PersonalDataVolume *string `json:"personal_data_volume,omitempty"`
 	HasInternetAccess  bool    `json:"has_internet_access"`
 	IsIsolated         bool    `json:"is_isolated"`
+	SecurityContour    string  `json:"security_contour"`
 	CreatedAt          string  `json:"created_at"`
 	UpdatedAt          string  `json:"updated_at"`
 }
@@ -108,6 +109,7 @@ func assetToResponse(a *domain.Asset) AssetResponse {
 		PersonalDataVolume: a.PersonalDataVolume,
 		HasInternetAccess:  a.HasInternetAccess,
 		IsIsolated:         a.IsIsolated,
+		SecurityContour:    a.SecurityContour,
 		CreatedAt:          a.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		UpdatedAt:          a.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}

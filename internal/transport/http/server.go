@@ -8,6 +8,8 @@ import (
 	assetService "Diplom/internal/service/asset"
 	assetVulnService "Diplom/internal/service/asset_vulnerability"
 	authService "Diplom/internal/service/auth"
+	externalCatalogService "Diplom/internal/service/external_catalog"
+	ptsziService "Diplom/internal/service/ptszi"
 	riskService "Diplom/internal/service/risk"
 	softwareService "Diplom/internal/service/software"
 	threatService "Diplom/internal/service/threat"
@@ -19,7 +21,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func NewServer(_ context.Context, db *pgxpool.Pool, jwtSecret string) *fiber.App {
+func NewServer(_ context.Context, db *pgxpool.Pool, jwtSecret, bduSQLitePath, minreestrSQLitePath string) *fiber.App {
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			code := fiber.StatusInternalServerError
@@ -88,6 +90,23 @@ func NewServer(_ context.Context, db *pgxpool.Pool, jwtSecret string) *fiber.App
 	assetVulnSvc := assetVulnService.NewService(assetVulnRepo)
 	assetVulnHandler := NewAssetVulnerabilityHandler(assetVulnSvc)
 
+	// External local catalogs: BDU FSTEC and Minreestr SQLite mirrors.
+	bduRepo, err := repository.NewBDUSQLiteRepository(bduSQLitePath)
+	if err != nil {
+		log.Printf("bdu sqlite disabled: %v", err)
+	}
+	minreestrRepo, err := repository.NewMinreestrSQLiteRepository(minreestrSQLitePath)
+	if err != nil {
+		log.Printf("minreestr sqlite disabled: %v", err)
+	}
+	externalCatalogSvc := externalCatalogService.NewService(bduRepo, minreestrRepo, softwareRepo, vulnRepo, assetVulnRepo)
+	externalCatalogHandler := NewExternalCatalogHandler(externalCatalogSvc)
+
+	// Canonical PTSZI model: S -> ST -> VL -> controls -> DA -> W.
+	ptsziRepo := repository.NewPTSZIRepository(db)
+	ptsziSvc := ptsziService.NewService(assetRepo, ptsziRepo)
+	ptsziHandler := NewPTSZIHandler(ptsziSvc)
+
 	// Risk
 	threatSourceRepo := repository.NewThreatSourceRepository(db)
 	destructiveActionRepo := repository.NewDestructiveActionRepository(db)
@@ -141,6 +160,24 @@ func NewServer(_ context.Context, db *pgxpool.Pool, jwtSecret string) *fiber.App
 	write.Post("/vulnerabilities", vulnHandler.create)
 	write.Put("/vulnerabilities/:id", vulnHandler.update)
 	adminOnly.Delete("/vulnerabilities/:id", vulnHandler.delete)
+
+	// External local catalogs
+	readOnly.Get("/external/bdu/vulnerabilities", externalCatalogHandler.searchBDU)
+	readOnly.Get("/external/minreestr/software", externalCatalogHandler.searchMinreestr)
+	write.Post("/assets/:assetID/sync-bdu", externalCatalogHandler.syncAssetBDU)
+
+	// Canonical PTSZI routes
+	readOnly.Get("/ptszi/sources", ptsziHandler.listSources)
+	readOnly.Get("/ptszi/threats", ptsziHandler.listThreats)
+	readOnly.Get("/ptszi/vulnerable-links", ptsziHandler.listVulnerableLinks)
+	readOnly.Get("/ptszi/controls", ptsziHandler.listControls)
+	readOnly.Get("/ptszi/destructive-actions", ptsziHandler.listDestructiveActions)
+	readOnly.Get("/ptszi/ubi", ptsziHandler.listUBI)
+	readOnly.Get("/assets/:id/ptszi/profile", ptsziHandler.assetProfile)
+	readOnly.Get("/ptszi/assets/:assetID/threats", ptsziHandler.applicableThreats)
+	readOnly.Get("/ptszi/graph/:assetID/:threatID", ptsziHandler.graph)
+	write.Put("/assets/:id/ptszi/vulnerable-links", ptsziHandler.updateAssetVulnerableLinks)
+	write.Put("/assets/:id/ptszi/controls", ptsziHandler.updateAssetControls)
 
 	// Risk
 	readOnly.Get("/risk/overview", riskHandler.overview)

@@ -75,17 +75,17 @@ const (
 type DataCategory string
 
 const (
-	DataCategoryPublic             DataCategory = "public"              // Общедоступные
-	DataCategoryInternal           DataCategory = "internal"            // Внутренние
-	DataCategoryConfidential       DataCategory = "confidential"        // Конфиденциальные
-	DataCategoryPersonalData       DataCategory = "personal_data"       // ПДн (152-ФЗ)
-	DataCategoryPersonalDataSpec   DataCategory = "personal_data_special" // Специальные ПДн
-	DataCategoryPersonalDataBio    DataCategory = "personal_data_biometric" // Биометрические ПДн
-	DataCategoryKII                DataCategory = "kii"                 // КИИ (187-ФЗ)
-	DataCategoryStateSecret        DataCategory = "state_secret"        // Гостайна
-	DataCategoryBankingSecret      DataCategory = "banking_secret"      // Банковская тайна
-	DataCategoryMedicalSecret      DataCategory = "medical_secret"      // Врачебная тайна
-	DataCategoryCommercialSecret   DataCategory = "commercial_secret"   // Коммерческая тайна
+	DataCategoryPublic           DataCategory = "public"                  // Общедоступные
+	DataCategoryInternal         DataCategory = "internal"                // Внутренние
+	DataCategoryConfidential     DataCategory = "confidential"            // Конфиденциальные
+	DataCategoryPersonalData     DataCategory = "personal_data"           // ПДн (152-ФЗ)
+	DataCategoryPersonalDataSpec DataCategory = "personal_data_special"   // Специальные ПДн
+	DataCategoryPersonalDataBio  DataCategory = "personal_data_biometric" // Биометрические ПДн
+	DataCategoryKII              DataCategory = "kii"                     // КИИ (187-ФЗ)
+	DataCategoryStateSecret      DataCategory = "state_secret"            // Гостайна
+	DataCategoryBankingSecret    DataCategory = "banking_secret"          // Банковская тайна
+	DataCategoryMedicalSecret    DataCategory = "medical_secret"          // Врачебная тайна
+	DataCategoryCommercialSecret DataCategory = "commercial_secret"       // Коммерческая тайна
 )
 
 // ProtectionLevel — уровень защищённости ПДн (Постановление №1119)
@@ -149,11 +149,11 @@ const (
 type Asset struct {
 	ID                  int64            `db:"id"`
 	Name                string           `db:"name"`
-	Type                *string          `db:"type"`          // Тип актива для расчёта CIA (nullable)
+	Type                *string          `db:"type"` // Тип актива для расчёта CIA (nullable)
 	AssetTypeID         *int16           `db:"asset_type_id"`
 	Owner               *string          `db:"owner"`
 	Description         *string          `db:"description"`
-	Location            *string          `db:"location"`      // Расположение актива
+	Location            *string          `db:"location"` // Расположение актива
 	BusinessCriticality int16            `db:"business_criticality"`
 	Confidentiality     int16            `db:"confidentiality"`
 	Integrity           int16            `db:"integrity"`
@@ -168,6 +168,7 @@ type Asset struct {
 	PersonalDataVolume *string          `db:"personal_data_volume"` // Объём ПДн
 	HasInternetAccess  bool             `db:"has_internet_access"`  // Доступ в интернет
 	IsIsolated         bool             `db:"is_isolated"`          // Изолированный сегмент
+	SecurityContour    string           `db:"security_contour"`     // Контур ПТСЗИ: external/internal
 
 	// JSONB. На уровне репозитория можно маршалить/размаршалить в map[string]any.
 	Tags      []byte    `db:"tags"`
@@ -221,8 +222,31 @@ type Vulnerability struct {
 	Description             *string   `db:"description"`
 	Severity                int16     `db:"severity"`
 	AffectsAssetTypeID      *int16    `db:"affects_asset_type_id"`
+	ExternalID              *string   `db:"external_id"`
+	Source                  string    `db:"source"`
+	CVSSScore               *float64  `db:"cvss_score"`
+	CVEs                    *string   `db:"cves"`
+	Vendors                 *string   `db:"vendors"`
+	SoftwareNames           *string   `db:"software_names"`
 	CreatedAt               time.Time `db:"created_at"`
 	UpdatedAt               time.Time `db:"updated_at"`
+}
+
+// BDUVulnerability is a read-only row from the БДУ ФСТЭК SQLite mirror.
+type BDUVulnerability struct {
+	ID            string   `json:"id"`
+	Name          string   `json:"name"`
+	Description   *string  `json:"description,omitempty"`
+	Severity      *string  `json:"severity,omitempty"`
+	SeverityLevel int16    `json:"severity_level"`
+	CVSSScore     *float64 `json:"cvss_score,omitempty"`
+	CVSSVector    *string  `json:"cvss_vector,omitempty"`
+	CVEs          *string  `json:"cves,omitempty"`
+	Vendors       *string  `json:"vendors,omitempty"`
+	SoftwareNames *string  `json:"software_names,omitempty"`
+	Solution      *string  `json:"solution,omitempty"`
+	HasExploit    bool     `json:"has_exploit"`
+	HasFix        bool     `json:"has_fix"`
 }
 
 type AssetVulnerability struct {

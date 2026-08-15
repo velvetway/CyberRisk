@@ -16,6 +16,8 @@ INSERT INTO asset_types (id, name, description) VALUES
     (8, 'Cloud', 'Cloud-based resources and services')
 ON CONFLICT (name) DO NOTHING;
 
+SELECT setval(pg_get_serial_sequence('asset_types', 'id'), COALESCE((SELECT MAX(id) FROM asset_types), 1), true);
+
 -- ============================================
 -- 2. THREAT CATEGORIES (справочник)
 -- ============================================
@@ -29,6 +31,8 @@ INSERT INTO threat_categories (id, name, description) VALUES
     (6, 'Insider Threat', 'Threats from internal employees or contractors'),
     (7, 'Physical', 'Physical security threats')
 ON CONFLICT (name) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('threat_categories', 'id'), COALESCE((SELECT MAX(id) FROM threat_categories), 1), true);
 
 -- ============================================
 -- 3. VULNERABILITY CATEGORIES (справочник)
@@ -44,6 +48,8 @@ INSERT INTO vulnerability_categories (id, name, description) VALUES
     (7, 'Logging', 'Insufficient logging and monitoring')
 ON CONFLICT (name) DO NOTHING;
 
+SELECT setval(pg_get_serial_sequence('vulnerability_categories', 'id'), COALESCE((SELECT MAX(id) FROM vulnerability_categories), 1), true);
+
 -- ============================================
 -- 4. CONTROL TYPES (справочник)
 -- ============================================
@@ -54,6 +60,8 @@ INSERT INTO control_types (id, name, description) VALUES
     (3, 'Corrective', 'Controls that correct security incidents'),
     (4, 'Compensating', 'Alternative controls when primary controls are not feasible')
 ON CONFLICT (name) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('control_types', 'id'), COALESCE((SELECT MAX(id) FROM control_types), 1), true);
 
 -- ============================================
 -- 5. ASSETS (демонстрационные данные)

@@ -52,9 +52,11 @@ CREATE TABLE asset_types (
 CREATE TABLE assets (
                         id                      BIGSERIAL PRIMARY KEY,
                         name                    TEXT        NOT NULL,
+                        type                    VARCHAR(64),
                         asset_type_id           SMALLINT    REFERENCES asset_types(id),
                         owner                   TEXT,
                         description             TEXT,
+                        location                TEXT,
                         business_criticality    SMALLINT    NOT NULL CHECK (business_criticality BETWEEN 1 AND 5),
                         confidentiality         SMALLINT    NOT NULL CHECK (confidentiality    BETWEEN 1 AND 5),
                         integrity               SMALLINT    NOT NULL CHECK (integrity          BETWEEN 1 AND 5),
@@ -67,6 +69,7 @@ CREATE TABLE assets (
 
 CREATE INDEX idx_assets_asset_type_id ON assets(asset_type_id);
 CREATE INDEX idx_assets_env           ON assets(environment);
+CREATE INDEX idx_assets_type          ON assets(type);
 
 
 -- ============================
@@ -121,12 +124,19 @@ CREATE TABLE vulnerabilities (
                                  description                 TEXT,
                                  severity                    SMALLINT    NOT NULL CHECK (severity BETWEEN 1 AND 10),
                                  affects_asset_type_id       SMALLINT    REFERENCES asset_types(id),
+                                 external_id                 VARCHAR(64),
+                                 source                      VARCHAR(32) NOT NULL DEFAULT 'manual',
+                                 cvss_score                  NUMERIC(3,1),
+                                 cves                        TEXT,
+                                 vendors                     TEXT,
+                                 software_names              TEXT,
                                  created_at                  TIMESTAMPTZ NOT NULL DEFAULT now(),
                                  updated_at                  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE INDEX idx_vuln_category       ON vulnerabilities(vulnerability_category_id);
 CREATE INDEX idx_vuln_aff_asset_type ON vulnerabilities(affects_asset_type_id);
+CREATE UNIQUE INDEX idx_vuln_source_external_id ON vulnerabilities(source, external_id) WHERE external_id IS NOT NULL;
 
 
 -- ============================

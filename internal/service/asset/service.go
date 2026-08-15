@@ -43,6 +43,7 @@ type CreateAssetInput struct {
 	PersonalDataVolume *string `json:"personal_data_volume"`
 	HasInternetAccess  bool    `json:"has_internet_access"`
 	IsIsolated         bool    `json:"is_isolated"`
+	SecurityContour    string  `json:"security_contour"`
 }
 
 type UpdateAssetInput = CreateAssetInput
@@ -56,6 +57,7 @@ func (s *service) Create(ctx context.Context, in CreateAssetInput) (*domain.Asse
 	if env == "" {
 		env = domain.AssetEnvProd
 	}
+	securityContour := normalizeSecurityContour(in.SecurityContour, in.HasInternetAccess, in.IsIsolated)
 
 	var tagsBytes []byte
 	if in.Tags != nil {
@@ -127,6 +129,7 @@ func (s *service) Create(ctx context.Context, in CreateAssetInput) (*domain.Asse
 		PersonalDataVolume: in.PersonalDataVolume,
 		HasInternetAccess:  in.HasInternetAccess,
 		IsIsolated:         in.IsIsolated,
+		SecurityContour:    securityContour,
 	}
 
 	if err := s.repo.Create(ctx, asset); err != nil {
@@ -223,12 +226,24 @@ func (s *service) Update(ctx context.Context, id int64, in UpdateAssetInput) (*d
 	a.PersonalDataVolume = in.PersonalDataVolume
 	a.HasInternetAccess = in.HasInternetAccess
 	a.IsIsolated = in.IsIsolated
+	a.SecurityContour = normalizeSecurityContour(in.SecurityContour, in.HasInternetAccess, in.IsIsolated)
 
 	if err := s.repo.Update(ctx, a); err != nil {
 		return nil, err
 	}
 
 	return a, nil
+}
+
+func normalizeSecurityContour(value string, hasInternetAccess, isIsolated bool) string {
+	switch value {
+	case "external", "internal":
+		return value
+	}
+	if hasInternetAccess && !isIsolated {
+		return "external"
+	}
+	return "internal"
 }
 
 func (s *service) Delete(ctx context.Context, id int64) error {
