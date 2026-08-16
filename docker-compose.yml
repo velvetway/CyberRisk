@@ -49,6 +49,7 @@ services:
       APP_ENV: dev
       BDU_SQLITE_PATH: /app/data/bdu.sqlite
       MINREESTR_SQLITE_PATH: /app/data/minreestr.sqlite
+      SZI_SQLITE_PATH: /app/data/szi.sqlite
     volumes:
       - ./data:/app/data:ro
     ports:

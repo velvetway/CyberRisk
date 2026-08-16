@@ -11,6 +11,7 @@ type Config struct {
 	JWTSecret           string
 	BDUSQLitePath       string
 	MinreestrSQLitePath string
+	SZISQLitePath       string
 }
 
 // Load загружает конфиг из переменных окружения.
@@ -43,6 +44,7 @@ func Load() (*Config, error) {
 		JWTSecret:           jwtSecret,
 		BDUSQLitePath:       envOrDefault("BDU_SQLITE_PATH", "./data/bdu.sqlite"),
 		MinreestrSQLitePath: envOrDefault("MINREESTR_SQLITE_PATH", "./data/minreestr.sqlite"),
+		SZISQLitePath:       envOrDefault("SZI_SQLITE_PATH", "./data/szi.sqlite"),
 	}, nil
 }
 

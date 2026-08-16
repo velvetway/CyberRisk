@@ -70,6 +70,8 @@ temp/
 
 # bdu.sqlite (450 МБ) восстанавливается из зеркала:
 #   curl -L https://raw.githubusercontent.com/velvetway/bdu-fstec-mirror/main/data/bdu.sqlite.gz | gunzip > data/bdu.sqlite
+# szi.sqlite (1.4 МБ) — реестр сертифицированных СЗИ ФСТЭК:
+#   curl -L -o data/szi.sqlite https://raw.githubusercontent.com/velvetway/szi-fstec-mirror/main/data/szi.sqlite
 # minreestr.sqlite (52 КБ) собранной выборки нигде не дублируется — держим в репозитории
 !data/minreestr.sqlite
 

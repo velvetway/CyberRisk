@@ -70,6 +70,46 @@ func (h *ExternalCatalogHandler) searchMinreestr(c *fiber.Ctx) error {
 	return c.JSON(items)
 }
 
+// searchSZI — поиск по Государственному реестру сертифицированных СЗИ ФСТЭК.
+// Параметр control отбирает средства по методу противодействия ПТСЗИ,
+// max_class — по классу защиты (не хуже указанного, меньше значение строже).
+func (h *ExternalCatalogHandler) searchSZI(c *fiber.Ctx) error {
+	limit, _ := strconv.Atoi(c.Query("limit", "25"))
+
+	var maxClass *int16
+	if raw := c.Query("max_class"); raw != "" {
+		if v, err := strconv.ParseInt(raw, 10, 16); err == nil {
+			x := int16(v)
+			maxClass = &x
+		}
+	}
+
+	// По умолчанию отдаём только действующие сертификаты: просроченные
+	// в подборе средств бесполезны.
+	activeOnly := c.Query("active_only", "true") != "false"
+
+	items, err := h.svc.SearchSZI(c.Context(), repository.SZISearchFilter{
+		Query:              c.Query("q"),
+		ControlCode:        c.Query("control"),
+		MaxProtectionClass: maxClass,
+		ActiveOnly:         activeOnly,
+		Limit:              limit,
+	})
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(items)
+}
+
+// sziCoverage — сколько сертифицированных средств доступно на каждый метод ПТСЗИ.
+func (h *ExternalCatalogHandler) sziCoverage(c *fiber.Ctx) error {
+	items, err := h.svc.SZIControlCoverage(c.Context())
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(items)
+}
+
 func (h *ExternalCatalogHandler) syncAssetBDU(c *fiber.Ctx) error {
 	assetID, err := strconv.ParseInt(c.Params("assetID"), 10, 64)
 	if err != nil || assetID <= 0 {

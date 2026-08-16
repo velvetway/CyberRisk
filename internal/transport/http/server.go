@@ -21,7 +21,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func NewServer(_ context.Context, db *pgxpool.Pool, jwtSecret, bduSQLitePath, minreestrSQLitePath string) *fiber.App {
+func NewServer(_ context.Context, db *pgxpool.Pool, jwtSecret, bduSQLitePath, minreestrSQLitePath, sziSQLitePath string) *fiber.App {
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			code := fiber.StatusInternalServerError
@@ -99,7 +99,12 @@ func NewServer(_ context.Context, db *pgxpool.Pool, jwtSecret, bduSQLitePath, mi
 	if err != nil {
 		log.Printf("minreestr sqlite disabled: %v", err)
 	}
-	externalCatalogSvc := externalCatalogService.NewService(bduRepo, minreestrRepo, softwareRepo, vulnRepo, assetVulnRepo)
+	// Государственный реестр сертифицированных СЗИ ФСТЭК.
+	sziRepo, err := repository.NewSZISQLiteRepository(sziSQLitePath)
+	if err != nil {
+		log.Printf("szi sqlite disabled: %v", err)
+	}
+	externalCatalogSvc := externalCatalogService.NewService(bduRepo, minreestrRepo, softwareRepo, vulnRepo, assetVulnRepo, sziRepo)
 	externalCatalogHandler := NewExternalCatalogHandler(externalCatalogSvc)
 
 	// Canonical PTSZI model: S -> ST -> VL -> controls -> DA -> W.
@@ -164,6 +169,8 @@ func NewServer(_ context.Context, db *pgxpool.Pool, jwtSecret, bduSQLitePath, mi
 	// External local catalogs
 	readOnly.Get("/external/bdu/vulnerabilities", externalCatalogHandler.searchBDU)
 	readOnly.Get("/external/minreestr/software", externalCatalogHandler.searchMinreestr)
+	readOnly.Get("/external/szi/certificates", externalCatalogHandler.searchSZI)
+	readOnly.Get("/external/szi/coverage", externalCatalogHandler.sziCoverage)
 	write.Post("/assets/:assetID/sync-bdu", externalCatalogHandler.syncAssetBDU)
 
 	// Canonical PTSZI routes

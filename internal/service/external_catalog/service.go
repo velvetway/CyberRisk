@@ -13,6 +13,8 @@ type Service interface {
 	SearchBDU(ctx context.Context, f repository.BDUSearchFilter) ([]domain.BDUVulnerability, error)
 	SearchMinreestr(ctx context.Context, f repository.MinreestrFilter) ([]domain.Software, error)
 	SyncAssetBDUVulnerabilities(ctx context.Context, assetID int64, limitPerSoftware int) (*AssetBDUSyncResult, error)
+	SearchSZI(ctx context.Context, f repository.SZISearchFilter) ([]domain.SZICertificate, error)
+	SZIControlCoverage(ctx context.Context) ([]domain.SZIControlCoverage, error)
 }
 
 type AssetBDUSyncResult struct {
@@ -35,6 +37,7 @@ type service struct {
 	softwareRepo  repository.SoftwareRepository
 	vulnRepo      repository.VulnerabilityRepository
 	assetVulnRepo repository.AssetVulnerabilityRepository
+	szi           repository.SZIRepository
 }
 
 func NewService(
@@ -43,6 +46,7 @@ func NewService(
 	softwareRepo repository.SoftwareRepository,
 	vulnRepo repository.VulnerabilityRepository,
 	assetVulnRepo repository.AssetVulnerabilityRepository,
+	szi repository.SZIRepository,
 ) Service {
 	return &service{
 		bdu:           bdu,
@@ -50,7 +54,25 @@ func NewService(
 		softwareRepo:  softwareRepo,
 		vulnRepo:      vulnRepo,
 		assetVulnRepo: assetVulnRepo,
+		szi:           szi,
 	}
+}
+
+// SearchSZI отдаёт сертифицированные средства защиты из реестра ФСТЭК.
+func (s *service) SearchSZI(ctx context.Context, f repository.SZISearchFilter) ([]domain.SZICertificate, error) {
+	if s.szi == nil || !s.szi.IsAvailable() {
+		return nil, errors.New("szi sqlite catalog is not available")
+	}
+	return s.szi.Search(ctx, f)
+}
+
+// SZIControlCoverage показывает, для каких методов ПТСЗИ вообще есть
+// сертифицированные средства, а где выбирать не из чего.
+func (s *service) SZIControlCoverage(ctx context.Context) ([]domain.SZIControlCoverage, error) {
+	if s.szi == nil || !s.szi.IsAvailable() {
+		return nil, errors.New("szi sqlite catalog is not available")
+	}
+	return s.szi.ControlCoverage(ctx)
 }
 
 func (s *service) SearchBDU(ctx context.Context, f repository.BDUSearchFilter) ([]domain.BDUVulnerability, error) {
