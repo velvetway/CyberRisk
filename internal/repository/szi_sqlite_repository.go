@@ -159,15 +159,27 @@ func (r *sziSQLiteRepository) ControlCoverage(ctx context.Context) ([]domain.SZI
 	if !r.IsAvailable() {
 		return nil, fmt.Errorf("szi sqlite is not configured")
 	}
-	rows, err := r.db.QueryContext(ctx, `
+	// Цены живут в отдельных таблицах, которых может не быть: они создаются
+	// отдельным шагом сборки зеркала.
+	priceExpr := "0"
+	priceJoin := ""
+	if r.hasPrices(ctx) {
+		priceExpr = "COUNT(DISTINCT CASE WHEN p.price_min IS NOT NULL THEN c.rowid END)"
+		priceJoin = `
+LEFT JOIN certificate_prices cp ON cp.certificate_rowid = c.rowid
+LEFT JOIN product_prices p ON p.id = cp.price_id`
+	}
+
+	rows, err := r.db.QueryContext(ctx, fmt.Sprintf(`
 SELECT cc.control_code,
        COUNT(DISTINCT c.rowid),
-       COUNT(DISTINCT c.applicant)
+       COUNT(DISTINCT c.applicant),
+       %s
 FROM certificates c
-JOIN certificate_controls cc ON cc.certificate_rowid = c.rowid
+JOIN certificate_controls cc ON cc.certificate_rowid = c.rowid%s
 WHERE c.is_active = 1
 GROUP BY cc.control_code
-ORDER BY 2 DESC`)
+ORDER BY 2 DESC`, priceExpr, priceJoin))
 	if err != nil {
 		return nil, fmt.Errorf("szi control coverage: %w", err)
 	}
@@ -176,7 +188,7 @@ ORDER BY 2 DESC`)
 	out := make([]domain.SZIControlCoverage, 0, 11)
 	for rows.Next() {
 		var c domain.SZIControlCoverage
-		if err := rows.Scan(&c.ControlCode, &c.Certificates, &c.Vendors); err != nil {
+		if err := rows.Scan(&c.ControlCode, &c.Certificates, &c.Vendors, &c.WithPrice); err != nil {
 			return nil, fmt.Errorf("scan szi coverage: %w", err)
 		}
 		out = append(out, c)

@@ -48,4 +48,7 @@ type SZIControlCoverage struct {
 	ControlCode  string `json:"control_code"`
 	Certificates int    `json:"certificates"`
 	Vendors      int    `json:"vendors"`
+	// WithPrice — сколько средств метода имеют собранную цену. Подбор комплекса
+	// возможен только там, где есть из чего выбирать по стоимости.
+	WithPrice int `json:"with_price"`
 }
