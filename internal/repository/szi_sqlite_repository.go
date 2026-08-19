@@ -116,7 +116,11 @@ LIMIT ?`, sziColumns, from, strings.Join(filters, " AND "))
 	if err != nil {
 		return nil, err
 	}
-	return r.attachControls(ctx, items)
+	items, err = r.attachControls(ctx, items)
+	if err != nil {
+		return nil, err
+	}
+	return r.attachPrices(ctx, items)
 }
 
 func (r *sziSQLiteRepository) GetByID(ctx context.Context, id int64) (*domain.SZICertificate, error) {
@@ -141,7 +145,11 @@ SELECT %s FROM certificates c WHERE c.rowid = ?`, sziColumns), id)
 	if err != nil {
 		return nil, err
 	}
-	return &withControls[0], nil
+	withPrices, err := r.attachPrices(ctx, withControls)
+	if err != nil {
+		return nil, err
+	}
+	return &withPrices[0], nil
 }
 
 // ControlCoverage показывает, сколько действующих сертификатов приходится на
@@ -210,6 +218,69 @@ ORDER BY control_code`, strings.Join(placeholders, ",")), args...)
 		}
 		if i, ok := index[id]; ok {
 			items[i].Controls = append(items[i].Controls, code)
+		}
+	}
+	return items, rows.Err()
+}
+
+// hasPrices сообщает, подмешаны ли в базу курируемые цены. Таблица создаётся
+// отдельным шагом сборки зеркала, и её может не быть — тогда каталог работает
+// без цен, а не падает.
+func (r *sziSQLiteRepository) hasPrices(ctx context.Context) bool {
+	var name string
+	err := r.db.QueryRowContext(ctx,
+		"SELECT name FROM sqlite_master WHERE type='table' AND name='product_prices'").Scan(&name)
+	return err == nil
+}
+
+// attachPrices дозаполняет цены одним запросом на всю выборку.
+func (r *sziSQLiteRepository) attachPrices(ctx context.Context, items []domain.SZICertificate) ([]domain.SZICertificate, error) {
+	if len(items) == 0 || !r.hasPrices(ctx) {
+		return items, nil
+	}
+
+	placeholders := make([]string, len(items))
+	args := make([]any, len(items))
+	index := make(map[int64]int, len(items))
+	for i := range items {
+		placeholders[i] = "?"
+		args[i] = items[i].ID
+		index[items[i].ID] = i
+	}
+
+	rows, err := r.db.QueryContext(ctx, fmt.Sprintf(`
+SELECT cp.certificate_rowid, p.product_name, p.vendor, p.price_min, p.price_max,
+       p.currency, p.license_model, p.source_url, p.source_type, p.collected_at, p.note
+FROM certificate_prices cp
+JOIN product_prices p ON p.id = cp.price_id
+WHERE cp.certificate_rowid IN (%s)
+ORDER BY p.product_name`, strings.Join(placeholders, ",")), args...)
+	if err != nil {
+		return nil, fmt.Errorf("load szi prices: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var certID int64
+		var p domain.SZIPrice
+		var min, max sql.NullFloat64
+
+		if err := rows.Scan(
+			&certID, &p.ProductName, &p.Vendor, &min, &max,
+			&p.Currency, &p.LicenseModel, &p.SourceURL, &p.SourceType, &p.CollectedAt, &p.Note,
+		); err != nil {
+			return nil, fmt.Errorf("scan szi price: %w", err)
+		}
+		if min.Valid {
+			v := min.Float64
+			p.PriceMin = &v
+		}
+		if max.Valid {
+			v := max.Float64
+			p.PriceMax = &v
+		}
+		if i, ok := index[certID]; ok {
+			items[i].Prices = append(items[i].Prices, p)
 		}
 	}
 	return items, rows.Err()
