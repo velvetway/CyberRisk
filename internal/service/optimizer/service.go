@@ -20,6 +20,7 @@ const defaultEffectiveness = 0.8
 
 type Service interface {
 	Optimize(ctx context.Context, assetID int64, budget float64, maxClass *int16) (*Plan, error)
+	Roadmap(ctx context.Context, assetID int64, budgetPerYear float64, years int, maxClass *int16) (*Roadmap, error)
 }
 
 type service struct {
@@ -82,6 +83,83 @@ func (s *service) Optimize(ctx context.Context, assetID int64, budget float64, m
 
 	plan.Warnings = warnings(plan.Steps)
 	return plan, nil
+}
+
+// Roadmap строит план внедрения на несколько лет.
+//
+// В отличие от Optimize минимизируется не конечный риск, а площадь под кривой
+// риска за горизонт: год, прожитый под критической угрозой, стоит дороже года
+// под средней, и порядок закупок поэтому влияет на ответ.
+func (s *service) Roadmap(
+	ctx context.Context,
+	assetID int64,
+	budgetPerYear float64,
+	years int,
+	maxClass *int16,
+) (*Roadmap, error) {
+	if budgetPerYear <= 0 {
+		return nil, fmt.Errorf("budget per year must be positive")
+	}
+	if years <= 0 {
+		years = defaultHorizonYears
+	}
+	if years > maxHorizonYears {
+		return nil, fmt.Errorf("horizon must not exceed %d years", maxHorizonYears)
+	}
+	if s.szi == nil || !s.szi.IsAvailable() {
+		return nil, fmt.Errorf("szi catalog is not available")
+	}
+
+	paths, err := s.ptszi.ApplicableThreats(ctx, assetID)
+	if err != nil {
+		return nil, fmt.Errorf("applicable threats: %w", err)
+	}
+
+	baseline := totalW(paths, nil)
+	roadmap := &Roadmap{
+		AssetID:       assetID,
+		HorizonYears:  years,
+		BudgetPerYear: budgetPerYear,
+		BaselineW:     baseline,
+		FinalW:        baseline,
+		BaselineArea:  baseline * float64(years),
+		RiskArea:      baseline * float64(years),
+		Periods:       []Period{},
+	}
+	if len(paths) == 0 {
+		return roadmap, nil
+	}
+
+	candidates, skipped, err := s.buildCandidates(ctx, paths, maxClass)
+	if err != nil {
+		return nil, err
+	}
+	roadmap.Skipped = skipped
+	sortCandidates(candidates)
+
+	periods, purchases := planRoadmap(paths, candidates, budgetPerYear, years)
+	roadmap.Periods = periods
+
+	for _, p := range periods {
+		roadmap.TotalCost += p.Spent
+	}
+
+	// Площадь считаем по помесячному ряду целиком, а не сложением по годам:
+	// так не накапливается ошибка округления.
+	series := monthlyW(paths, purchases, years*12)
+	roadmap.RiskArea = riskArea(series)
+	roadmap.AreaReduction = roadmap.BaselineArea - roadmap.RiskArea
+	if len(series) > 0 {
+		roadmap.FinalW = series[len(series)-1]
+	}
+
+	steps := make([]Step, 0, len(purchases))
+	for _, p := range purchases {
+		steps = append(steps, Step{Candidate: p.Candidate})
+	}
+	roadmap.Warnings = warnings(steps)
+
+	return roadmap, nil
 }
 
 // buildCandidates собирает по одному кандидату на каждый невнедрённый метод:

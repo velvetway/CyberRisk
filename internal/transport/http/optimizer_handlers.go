@@ -51,3 +51,52 @@ func (h *OptimizerHandler) optimize(c *fiber.Ctx) error {
 	}
 	return c.JSON(plan)
 }
+
+// roadmap строит план внедрения на несколько лет при годовом бюджете.
+//
+// Отличается от optimize целевой функцией: минимизируется площадь под кривой
+// риска за горизонт, а не конечный риск. Из-за этого важен порядок закупок —
+// средство, внедрённое в первый год, защищает дольше, чем купленное в
+// последний, даже если итоговый набор совпадает.
+//
+// Параметры:
+//
+//	budget_per_year — годовой предел затрат в рублях (обязателен);
+//	years           — горизонт планирования, по умолчанию 3, не больше 5;
+//	max_class       — класс защиты по ФСТЭК не хуже указанного.
+func (h *OptimizerHandler) roadmap(c *fiber.Ctx) error {
+	assetID, err := strconv.ParseInt(c.Params("assetID"), 10, 64)
+	if err != nil || assetID <= 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid asset id"})
+	}
+
+	budget, err := strconv.ParseFloat(c.Query("budget_per_year"), 64)
+	if err != nil || budget <= 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "budget_per_year must be a positive number"})
+	}
+
+	years := 0
+	if raw := c.Query("years"); raw != "" {
+		v, err := strconv.Atoi(raw)
+		if err != nil || v <= 0 {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "years must be a positive integer"})
+		}
+		years = v
+	}
+
+	var maxClass *int16
+	if raw := c.Query("max_class"); raw != "" {
+		v, err := strconv.ParseInt(raw, 10, 16)
+		if err != nil || v < 1 || v > 6 {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "max_class must be 1..6"})
+		}
+		x := int16(v)
+		maxClass = &x
+	}
+
+	plan, err := h.svc.Roadmap(c.Context(), assetID, budget, years, maxClass)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(plan)
+}

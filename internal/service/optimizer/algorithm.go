@@ -50,6 +50,14 @@ func recalcW(path *domain.PTSZIAttackPath, added map[string]float64) float64 {
 	return ptszi.CalculateW(path.QThreat, path.QSeverity, qReaction, path.Z)
 }
 
+// pathSet — набор сценариев актива. Отдельный тип нужен планировщику
+// дорожной карты: он считает W многократно, для каждого месяца горизонта.
+type pathSet []domain.PTSZIAttackPath
+
+func (p pathSet) totalW(added map[string]float64) float64 {
+	return totalW(p, added)
+}
+
 // totalW — суммарный вес всех применимых угроз актива при заданном наборе
 // дополнительно внедряемых мер.
 //
