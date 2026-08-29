@@ -9,6 +9,7 @@ import (
 	assetVulnService "Diplom/internal/service/asset_vulnerability"
 	authService "Diplom/internal/service/auth"
 	externalCatalogService "Diplom/internal/service/external_catalog"
+	optimizerService "Diplom/internal/service/optimizer"
 	ptsziService "Diplom/internal/service/ptszi"
 	riskService "Diplom/internal/service/risk"
 	softwareService "Diplom/internal/service/software"
@@ -112,6 +113,10 @@ func NewServer(_ context.Context, db *pgxpool.Pool, jwtSecret, bduSQLitePath, mi
 	ptsziSvc := ptsziService.NewService(assetRepo, ptsziRepo)
 	ptsziHandler := NewPTSZIHandler(ptsziSvc)
 
+	// Подбор комплекса СЗИ: снижение суммарного W при ограниченном бюджете.
+	optimizerSvc := optimizerService.NewService(ptsziSvc, sziRepo)
+	optimizerHandler := NewOptimizerHandler(optimizerSvc)
+
 	// Risk
 	threatSourceRepo := repository.NewThreatSourceRepository(db)
 	destructiveActionRepo := repository.NewDestructiveActionRepository(db)
@@ -183,6 +188,7 @@ func NewServer(_ context.Context, db *pgxpool.Pool, jwtSecret, bduSQLitePath, mi
 	readOnly.Get("/assets/:id/ptszi/profile", ptsziHandler.assetProfile)
 	readOnly.Get("/ptszi/assets/:assetID/threats", ptsziHandler.applicableThreats)
 	readOnly.Get("/ptszi/graph/:assetID/:threatID", ptsziHandler.graph)
+	readOnly.Get("/ptszi/assets/:assetID/optimize", optimizerHandler.optimize)
 	write.Put("/assets/:id/ptszi/vulnerable-links", ptsziHandler.updateAssetVulnerableLinks)
 	write.Put("/assets/:id/ptszi/controls", ptsziHandler.updateAssetControls)
 

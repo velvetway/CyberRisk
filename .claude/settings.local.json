@@ -19,7 +19,14 @@
       "Bash(npm run build:*)",
       "Bash(curl:*)",
       "Bash(pkill:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "mcp__burp__generate_random_string",
+      "mcp__burp__output_user_options",
+      "mcp__burp__send_http1_request",
+      "mcp__burp__create_repeater_tab",
+      "mcp__burp__generate_collaborator_payload",
+      "Bash(claude --version)",
+      "Bash(npm view *)"
     ],
     "deny": [],
     "ask": []
