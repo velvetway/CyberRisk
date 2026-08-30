@@ -29,32 +29,21 @@ func (h *AssetHandler) Register(r fiber.Router) {
 	r.Delete("/:id", h.deleteAsset)
 }
 
-// DTO для ответа
+// AssetResponse is the API surface for an asset under the PTSZI W-model.
+// All legacy regulatory / criticality / CIA fields have been dropped from the
+// response — see docs/risk-model.md.
 type AssetResponse struct {
-	ID                  int64                  `json:"id"`
-	Name                string                 `json:"name"`
-	Type                string                 `json:"type"`
-	AssetTypeID         *int16                 `json:"asset_type_id,omitempty"`
-	Owner               *string                `json:"owner,omitempty"`
-	Description         *string                `json:"description,omitempty"`
-	Location            *string                `json:"location,omitempty"`
-	BusinessCriticality int16                  `json:"business_criticality"`
-	Confidentiality     int16                  `json:"confidentiality"`
-	Integrity           int16                  `json:"integrity"`
-	Availability        int16                  `json:"availability"`
-	Environment         string                 `json:"environment"`
-	Tags                map[string]interface{} `json:"tags,omitempty"`
-	// Регуляторные поля
-	DataCategory       *string `json:"data_category,omitempty"`
-	ProtectionLevel    *string `json:"protection_level,omitempty"`
-	KIICategory        *string `json:"kii_category,omitempty"`
-	HasPersonalData    bool    `json:"has_personal_data"`
-	PersonalDataVolume *string `json:"personal_data_volume,omitempty"`
-	HasInternetAccess  bool    `json:"has_internet_access"`
-	IsIsolated         bool    `json:"is_isolated"`
-	SecurityContour    string  `json:"security_contour"`
-	CreatedAt          string  `json:"created_at"`
-	UpdatedAt          string  `json:"updated_at"`
+	ID             int64                  `json:"id"`
+	Name           string                 `json:"name"`
+	AssetTypeID    *int16                 `json:"asset_type_id,omitempty"`
+	DataCategoryID *int16                 `json:"data_category_id,omitempty"`
+	Owner          *string                `json:"owner,omitempty"`
+	Description    *string                `json:"description,omitempty"`
+	Environment    string                 `json:"environment"`
+	IsIsolated     bool                   `json:"is_isolated"`
+	Tags           map[string]interface{} `json:"tags,omitempty"`
+	CreatedAt      string                 `json:"created_at"`
+	UpdatedAt      string                 `json:"updated_at"`
 }
 
 func assetToResponse(a *domain.Asset) AssetResponse {
@@ -63,55 +52,18 @@ func assetToResponse(a *domain.Asset) AssetResponse {
 		_ = json.Unmarshal(a.Tags, &tags)
 	}
 
-	var assetType string
-	if a.Type != nil {
-		assetType = *a.Type
-	}
-
-	// Конвертируем регуляторные поля
-	var dataCategory *string
-	if a.DataCategory != nil {
-		s := string(*a.DataCategory)
-		dataCategory = &s
-	}
-
-	var protectionLevel *string
-	if a.ProtectionLevel != nil {
-		s := string(*a.ProtectionLevel)
-		protectionLevel = &s
-	}
-
-	var kiiCategory *string
-	if a.KIICategory != nil {
-		s := string(*a.KIICategory)
-		kiiCategory = &s
-	}
-
 	return AssetResponse{
-		ID:                  a.ID,
-		Name:                a.Name,
-		Type:                assetType,
-		AssetTypeID:         a.AssetTypeID,
-		Owner:               a.Owner,
-		Description:         a.Description,
-		Location:            a.Location,
-		BusinessCriticality: a.BusinessCriticality,
-		Confidentiality:     a.Confidentiality,
-		Integrity:           a.Integrity,
-		Availability:        a.Availability,
-		Environment:         string(a.Environment),
-		Tags:                tags,
-		// Регуляторные поля
-		DataCategory:       dataCategory,
-		ProtectionLevel:    protectionLevel,
-		KIICategory:        kiiCategory,
-		HasPersonalData:    a.HasPersonalData,
-		PersonalDataVolume: a.PersonalDataVolume,
-		HasInternetAccess:  a.HasInternetAccess,
-		IsIsolated:         a.IsIsolated,
-		SecurityContour:    a.SecurityContour,
-		CreatedAt:          a.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-		UpdatedAt:          a.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		ID:             a.ID,
+		Name:           a.Name,
+		AssetTypeID:    a.AssetTypeID,
+		DataCategoryID: a.DataCategoryID,
+		Owner:          a.Owner,
+		Description:    a.Description,
+		Environment:    string(a.Environment),
+		IsIsolated:     a.IsIsolated,
+		Tags:           tags,
+		CreatedAt:      a.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		UpdatedAt:      a.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}
 }
 

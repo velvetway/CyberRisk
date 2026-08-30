@@ -44,13 +44,13 @@ CREATE TABLE software_catalog (
     fstec_certified         BOOLEAN NOT NULL DEFAULT FALSE,
     fstec_certificate_num   VARCHAR(64),          -- Номер сертификата ФСТЭК
     fstec_certificate_date  DATE,                 -- Дата сертификата
-    fstec_protection_class  TEXT,                 -- Класс защиты (например, "до 1 класса защищённости")
+    fstec_protection_class  VARCHAR(64),          -- Класс защиты (например, "4" для СЗИ)
     fstec_valid_until       DATE,                 -- Срок действия сертификата
 
     -- Сертификация ФСБ (для СКЗИ)
     fsb_certified           BOOLEAN NOT NULL DEFAULT FALSE,
     fsb_certificate_num     VARCHAR(64),
-    fsb_protection_class    TEXT,                 -- КС1, КС2, КС3, КВ, КА
+    fsb_protection_class    VARCHAR(64),          -- КС1, КС2, КС3, КВ, КА
 
     description             TEXT,
     website                 TEXT,

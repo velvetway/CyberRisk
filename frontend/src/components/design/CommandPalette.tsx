@@ -48,6 +48,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ open, onClose })
       path: i.path,
       icon: i.icon,
     })),
+    { type: 'Действие', label: 'Экспортировать PDF-отчёт',   path: '/reports',      icon: 'download' },
     { type: 'Действие', label: 'Добавить актив',             path: '/assets/new',   icon: 'plus' },
   ];
 

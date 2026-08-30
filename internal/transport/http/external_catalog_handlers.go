@@ -109,16 +109,3 @@ func (h *ExternalCatalogHandler) sziCoverage(c *fiber.Ctx) error {
 	}
 	return c.JSON(items)
 }
-
-func (h *ExternalCatalogHandler) syncAssetBDU(c *fiber.Ctx) error {
-	assetID, err := strconv.ParseInt(c.Params("assetID"), 10, 64)
-	if err != nil || assetID <= 0 {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid asset id"})
-	}
-	limit, _ := strconv.Atoi(c.Query("limit_per_software", "10"))
-	result, err := h.svc.SyncAssetBDUVulnerabilities(c.Context(), assetID, limit)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
-	}
-	return c.JSON(result)
-}

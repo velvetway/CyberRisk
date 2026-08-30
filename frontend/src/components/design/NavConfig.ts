@@ -15,17 +15,18 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: NavItem[] = [
-  { id: 'dashboard', path: '/',                label: 'Обзор',            icon: 'grid',     badge: null,  section: 'main', hidden: true },
-  { id: 'riskmap',   path: '/risk/map',        label: 'Карта рисков',     icon: 'target',   badge: '5×5', section: 'main', hidden: true },
-  { id: 'graph',     path: '/ptszi/model',     label: 'Граф атаки',       icon: 'flow',     badge: 'W',   section: 'main' },
-  { id: 'optimizer', path: '/ptszi/optimizer', label: 'Подбор СЗИ',       icon: 'zap',      badge: '₽',   section: 'main' },
-  { id: 'assets',    path: '/assets',          label: 'Реестр активов',   icon: 'layers',   badge: null,  section: 'main' },
-  { id: 'software',  path: '/software',        label: 'Справочник ПО',    icon: 'package',  badge: null,  section: 'main', hidden: true },
-  { id: 'simulator', path: '/risk/preview',    label: 'Симулятор риска',  icon: 'zap',      badge: 'NEW', section: 'main', hidden: true },
-  { id: 'threats',   path: '/threats',         label: 'Каталог угроз',    icon: 'alert',    badge: 'БДУ', section: 'refs', hidden: true },
-  { id: 'vulns',     path: '/vulnerabilities', label: 'Уязвимости',       icon: 'activity', badge: null,  section: 'refs', hidden: true },
-  { id: 'reports',   path: '/reports',         label: 'Отчёты',           icon: 'file',     badge: null,  section: 'refs', hidden: true },
-  { id: 'settings',  path: '/settings',        label: 'Настройки',        icon: 'settings', badge: null,  section: 'system', hidden: true },
+  { id: 'dashboard',    path: '/',                label: 'Обзор',           icon: 'grid',     badge: null,    section: 'main' },
+  { id: 'organization', path: '/organization',    label: 'Организация',     icon: 'shield',   badge: null,    section: 'main' },
+  { id: 'graph',        path: '/risk/graph',      label: 'Граф атаки',      icon: 'flow',     badge: 'ПТСЗИ', section: 'main' },
+  { id: 'ptszi',        path: '/ptszi/model',     label: 'Модель ПТСЗИ',    icon: 'target',   badge: 'W',     section: 'main' },
+  { id: 'optimizer',    path: '/ptszi/optimizer', label: 'Подбор СЗИ',      icon: 'zap',      badge: '₽',     section: 'main' },
+  { id: 'assets',       path: '/assets',          label: 'Реестр активов',  icon: 'layers',   badge: null,    section: 'main' },
+  { id: 'software',     path: '/software',        label: 'Справочник ПО',   icon: 'package',  badge: null,    section: 'main' },
+  { id: 'threats',      path: '/threats',         label: 'Каталог угроз',   icon: 'alert',    badge: 'БДУ',   section: 'refs' },
+  { id: 'controls',     path: '/controls',        label: 'Каталог СЗИ',     icon: 'shield',   badge: null,    section: 'refs' },
+  { id: 'vulns',        path: '/vulnerabilities', label: 'Уязвимости',      icon: 'activity', badge: null,    section: 'refs' },
+  { id: 'reports',      path: '/reports',         label: 'Отчёты',          icon: 'file',     badge: null,    section: 'refs' },
+  { id: 'settings',     path: '/settings',        label: 'Настройки',       icon: 'settings', badge: null,    section: 'system' },
 ];
 
 /**

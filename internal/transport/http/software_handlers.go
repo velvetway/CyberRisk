@@ -202,3 +202,61 @@ func (h *SoftwareHandler) assetAlternatives(c *fiber.Ctx) error {
 
 	return c.JSON(alternatives)
 }
+
+// listAssetSoftware — GET /api/assets/:assetID/software
+func (h *SoftwareHandler) listAssetSoftware(c *fiber.Ctx) error {
+	assetID, err := strconv.ParseInt(c.Params("assetID"), 10, 64)
+	if err != nil || assetID <= 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid asset id"})
+	}
+	items, err := h.svc.ListInstalled(c.Context(), assetID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(items)
+}
+
+type attachSoftwareRequest struct {
+	SoftwareID int64   `json:"software_id"`
+	Version    *string `json:"version,omitempty"`
+}
+
+// attachAssetSoftware — POST /api/assets/:assetID/software
+func (h *SoftwareHandler) attachAssetSoftware(c *fiber.Ctx) error {
+	assetID, err := strconv.ParseInt(c.Params("assetID"), 10, 64)
+	if err != nil || assetID <= 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid asset id"})
+	}
+	var req attachSoftwareRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid json"})
+	}
+	if req.SoftwareID <= 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "software_id is required"})
+	}
+	detected, err := h.svc.AttachToAsset(c.Context(), assetID, req.SoftwareID, req.Version)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"asset_id":                 assetID,
+		"software_id":              req.SoftwareID,
+		"detected_vulnerabilities": detected,
+	})
+}
+
+// detachAssetSoftware — DELETE /api/assets/:assetID/software/:softwareID
+func (h *SoftwareHandler) detachAssetSoftware(c *fiber.Ctx) error {
+	assetID, err := strconv.ParseInt(c.Params("assetID"), 10, 64)
+	if err != nil || assetID <= 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid asset id"})
+	}
+	softwareID, err := strconv.ParseInt(c.Params("softwareID"), 10, 64)
+	if err != nil || softwareID <= 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid software id"})
+	}
+	if err := h.svc.DetachFromAsset(c.Context(), assetID, softwareID); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.SendStatus(fiber.StatusNoContent)
+}

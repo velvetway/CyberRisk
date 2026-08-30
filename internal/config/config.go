@@ -6,12 +6,21 @@ import (
 )
 
 type Config struct {
-	DBDSN               string
-	HTTPPort            string
-	JWTSecret           string
-	BDUSQLitePath       string
+	DBDSN     string
+	HTTPPort  string
+	JWTSecret string
+
+	// BDUSQLitePath — снимок БДУ ФСТЭК. Файл один, но читают его двое и
+	// по-разному: bdu.Snapshot ищет уязвимости конкретной версии ПО для
+	// автодетекта, а BDUSQLiteRepository отдаёт каталог с фильтрами по
+	// CVSS и вендору. Это не дублирование, а разные задачи над общими
+	// данными, поэтому путь тоже общий.
+	BDUSQLitePath string
+
+	// MinreestrSQLitePath — выборка каталога отечественного ПО.
 	MinreestrSQLitePath string
-	SZISQLitePath       string
+	// SZISQLitePath — реестр сертифицированных средств защиты ФСТЭК.
+	SZISQLitePath string
 }
 
 // Load загружает конфиг из переменных окружения.
@@ -38,11 +47,18 @@ func Load() (*Config, error) {
 		jwtSecret = "dev-secret-change-me"
 	}
 
+	// BDU_SNAPSHOT_PATH — прежнее имя переменной; поддерживается, чтобы
+	// не ломать развёртывания, где оно уже прописано.
+	bduPath := envOrDefault("BDU_SQLITE_PATH", "")
+	if bduPath == "" {
+		bduPath = envOrDefault("BDU_SNAPSHOT_PATH", "./data/bdu.sqlite")
+	}
+
 	return &Config{
 		DBDSN:               dsn,
 		HTTPPort:            port,
 		JWTSecret:           jwtSecret,
-		BDUSQLitePath:       envOrDefault("BDU_SQLITE_PATH", "./data/bdu.sqlite"),
+		BDUSQLitePath:       bduPath,
 		MinreestrSQLitePath: envOrDefault("MINREESTR_SQLITE_PATH", "./data/minreestr.sqlite"),
 		SZISQLitePath:       envOrDefault("SZI_SQLITE_PATH", "./data/szi.sqlite"),
 	}, nil

@@ -78,7 +78,6 @@ func runMigrations(t *testing.T, pool *pgxpool.Pool) {
 	}
 	sort.Strings(upFiles)
 
-	// Run migrations in the same numeric order as the application migrator.
 	for _, f := range upFiles {
 		sql, err := os.ReadFile(filepath.Join(migrationsDir, f))
 		if err != nil {
@@ -105,7 +104,6 @@ func truncateAll(t *testing.T, pool *pgxpool.Pool) {
 	t.Helper()
 	ctx := context.Background()
 	tables := []string{
-		"risk_scenario_recommendations", "recommendation_templates", "risk_scenarios",
 		"asset_controls", "controls", "asset_vulnerabilities", "asset_software",
 		"software_catalog", "software_categories", "vulnerabilities", "threats", "assets", "users",
 	}

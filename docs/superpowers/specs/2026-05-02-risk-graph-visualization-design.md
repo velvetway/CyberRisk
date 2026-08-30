@@ -159,10 +159,11 @@ GET /api/risk/asset/:asset_id/attack-paths
 Файлы:
 - `internal/transport/http/risk_handlers.go` — добавить handler `assetAttackPaths`.
 - `internal/transport/http/server.go` — зарегистрировать `readOnly.Get("/risk/asset/:asset_id/attack-paths", riskHandler.assetAttackPaths)`.
-- `internal/repository/risk_graph_repository.go` — bulk-метод `LoadAssetAttackPaths(ctx, assetID)`.
+- `internal/service/risk/aggregate.go` — pure helper `ComputeAssetAggregate`.
+- `internal/service/risk/service.go` — bulk-метод `AssembleAssetAttackPaths(ctx, assetID)`.
 - `internal/domain/risk_graph.go` — новый тип `AssetAttackPathsResponse` (asset, aggregate, paths).
 
-Bulk-метод не делает `N+1`: один запрос для списка threat_ids актива, один для всех VL+controls (group by threat), один для всех DA (group by threat). Aggregate-метрики считаются в Go.
+**V1 — намеренное допущение по производительности:** `AssembleAssetAttackPaths` в V1 вызывает существующий `AssembleAttackPath(asset, threat)` в цикле по всем угрозам. Это `N+1` (≈4 round-trip × N угроз). Для типичных активов (10–30 угроз) это ≈40–120 запросов — приемлемо для V1. **V2:** добавить `LoadAssetAttackPaths` bulk-метод на `RiskGraphRepository` (один запрос для списка threat_ids, один для всех VL+controls по batch, один для всех DA по batch) + `TestLoadAssetAttackPaths_NoNPlusOne` контракт-тест.
 
 ## Фронтенд: реализация
 
@@ -179,9 +180,10 @@ Bulk-метод не делает `N+1`: один запрос для списк
 ## Тесты
 
 **Бэкенд (Go):**
-- `risk_graph_repository_test.go` → `TestLoadAssetAttackPaths_NoNPlusOne` — проверяет, что число SQL-запросов не зависит от числа угроз (через мок).
+- `aggregate_test.go` → 5 unit-тестов на `ComputeAssetAggregate`: empty, two paths (один с uncovered VL), несколько uncovered VL в одном path, none-uncovered, path с пустыми VL.
 - `risk_handlers_test.go` → `TestAssetAttackPaths_HappyPath` — 200, корректный shape, aggregate.w_max совпадает с max из paths.
-- `risk_handlers_test.go` → `TestAssetAttackPaths_NotFound` — 404 для несуществующего assetId.
+- `risk_handlers_test.go` → `TestAssetAttackPaths_InvalidID` — 400 для нечислового asset_id.
+- *V2:* `TestLoadAssetAttackPaths_NoNPlusOne` появится одновременно с bulk repository-методом.
 
 **Фронтенд (vitest):**
 - `riskFlow.test.ts` → `flow conservation`: на синтетическом path `Σ(VL→C) + Σ(VL→DA) ≈ vl_inflow ± 1e-9` для каждого VL.

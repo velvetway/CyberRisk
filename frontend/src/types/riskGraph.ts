@@ -22,11 +22,13 @@ export interface ControlCoverage {
 }
 
 export interface VLNode {
-  vulnerability_id: number;
+  category_id: number;
+  code: string; // VL1..VL6
   name: string;
-  severity: number;
+  description?: string;
   coverage_controls: ControlCoverage[];
   uncovered: boolean;
+  presence_count?: number; // CVE/БДУ-записи этой категории, открытые на активе
 }
 
 export interface AttackPath {
@@ -41,4 +43,17 @@ export interface AttackPath {
   q_reaction: number;
   z: number;
   level: 'low' | 'medium' | 'high' | 'critical';
+}
+
+export interface AssetAggregate {
+  w_max: number;
+  level: 'info' | 'low' | 'medium' | 'high' | 'critical';
+  threat_count: number;
+  uncovered_count: number;
+}
+
+export interface AssetAttackPathsResponse {
+  asset: { id: number; name: string };
+  aggregate: AssetAggregate;
+  paths: AttackPath[];
 }

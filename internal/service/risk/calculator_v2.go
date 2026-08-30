@@ -2,16 +2,20 @@ package risk
 
 import "Diplom/internal/domain"
 
-// CalculateW implements the PTSZI formula W = (Q_threat + q_severity + (1 - Q_reaction)) / 3 * Z.
-// All Q inputs are clamped to [0,1]; Z is clamped to [0.5, 1.0].
+// CalculateW implements the PTSZI formula
+//
+//	W_i = (Q_threat + q_severity + (1 - Q_reaction)) / 3 * Z
+//
+// All Q inputs are clamped to [0,1]; Z is clamped to {0.5, 1.0}
+// (any input ≥ 1.0 → 1.0, otherwise 0.5).
 func CalculateW(qThreat, qSeverity, qReaction, z float64) float64 {
 	qThreat = clamp01(qThreat)
 	qSeverity = clamp01(qSeverity)
 	qReaction = clamp01(qReaction)
-	if z < 0.5 {
-		z = 0.5
-	} else if z > 1.0 {
+	if z >= 1.0 {
 		z = 1.0
+	} else {
+		z = 0.5
 	}
 	return (qThreat + qSeverity + (1.0 - qReaction)) / 3.0 * z
 }
@@ -30,8 +34,8 @@ func LevelFromW(w float64) string {
 	}
 }
 
-// QReactionFromVLs is the share of a threat's vulnerable links that have at least one
-// control with non-zero coverage deployed on the asset.
+// QReactionFromVLs is the share of a threat's vulnerable links that have at least
+// one control with non-zero coverage deployed on the asset.
 // Returns 0 when the threat has no VLs (i.e., nothing can be "covered").
 func QReactionFromVLs(vls []domain.VLNode) float64 {
 	if len(vls) == 0 {
@@ -49,24 +53,15 @@ func QReactionFromVLs(vls []domain.VLNode) float64 {
 	return float64(covered) / float64(len(vls))
 }
 
-// ZFromAsset assigns the contour-criticality coefficient to an asset:
+// ZFromAsset returns the contour-criticality coefficient strictly per the PTSZI thesis:
 //
-//	isolated        → 0.5  (угроза актуальна только для одного контура)
-//	prod            → 1.0
-//	stage/staging   → 0.75
-//	otherwise (dev) → 0.5
+//	is_isolated = TRUE  → Z = 0.5  (актив виден только в одном контуре)
+//	is_isolated = FALSE → Z = 1.0  (актив актуален для обоих контуров)
 func ZFromAsset(a domain.Asset) float64 {
 	if a.IsIsolated {
 		return 0.5
 	}
-	switch a.Environment {
-	case "prod", "production":
-		return 1.0
-	case "stage", "staging":
-		return 0.75
-	default:
-		return 0.5
-	}
+	return 1.0
 }
 
 func clamp01(v float64) float64 {

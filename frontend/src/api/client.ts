@@ -2,8 +2,6 @@
 import {
     Asset,
     Threat,
-    RiskPreviewRequest,
-    RiskPreviewResponse,
     RiskOverviewPoint,
     Software,
     SoftwareCategory,
@@ -81,6 +79,14 @@ async function request<T>(input: string, init?: RequestInit): Promise<T> {
     }
 
     if (res.status === 204) {
+        return undefined as T;
+    }
+
+    // Fiber's SendStatus(201) emits body "Created" (plain text), а мы зовём
+    // эту функцию для всех типов endpoint'ов — JSON и не-JSON. Если ответ
+    // не объявлен как application/json, не пытаемся парсить.
+    const ct = res.headers.get("content-type") || "";
+    if (!ct.includes("application/json")) {
         return undefined as T;
     }
 
@@ -181,16 +187,9 @@ export const api = {
         return request<Threat[]>("/api/threats");
     },
 
-    // Risk
+    // Risk (PTSZI W-model)
     getRiskOverview(): Promise<RiskOverviewPoint[]> {
         return request<RiskOverviewPoint[]>("/api/risk/overview");
-    },
-
-    previewRisk(body: RiskPreviewRequest): Promise<RiskPreviewResponse> {
-        return request<RiskPreviewResponse>("/api/risk/preview", {
-            method: "POST",
-            body: JSON.stringify(body),
-        });
     },
 
     // Software catalog
@@ -347,4 +346,300 @@ export const api = {
     getPtsziGraph(assetId: number, threatId: number): Promise<PtsziAttackPath> {
         return request<PtsziAttackPath>(`/api/ptszi/graph/${assetId}/${threatId}`);
     },
+
+    // P8: Asset detail page — установленное ПО, инвентарь CVE, контроли.
+
+    getAssetSoftware(assetID: number): Promise<AssetSoftwareLink[]> {
+        return request<AssetSoftwareLink[]>(`/api/assets/${assetID}/software`);
+    },
+
+    attachSoftware(assetID: number, softwareID: number, version?: string): Promise<{ detected_vulnerabilities: number }> {
+        return request<{ detected_vulnerabilities: number }>(`/api/assets/${assetID}/software`, {
+            method: "POST",
+            body: JSON.stringify({ software_id: softwareID, version }),
+        });
+    },
+
+    detachSoftware(assetID: number, softwareID: number): Promise<void> {
+        return request<void>(`/api/assets/${assetID}/software/${softwareID}`, { method: "DELETE" });
+    },
+
+    getAssetVulnerabilities(assetID: number): Promise<AssetVulnerability[]> {
+        return request<AssetVulnerability[]>(`/api/assets/${assetID}/vulnerabilities`);
+    },
+
+    addManualVulnerability(assetID: number, bduID: string, vlCategoryID?: number): Promise<void> {
+        return request<void>(`/api/assets/${assetID}/vulnerabilities`, {
+            method: "POST",
+            body: JSON.stringify({ bdu_id: bduID, vl_category_id: vlCategoryID }),
+        });
+    },
+
+    deleteAssetVulnerability(assetID: number, vulnID: number): Promise<void> {
+        return request<void>(`/api/assets/${assetID}/vulnerabilities/${vulnID}`, { method: "DELETE" });
+    },
+
+    getControls(): Promise<Control[]> {
+        return request<Control[]>("/api/controls");
+    },
+
+    getAssetControls(assetID: number): Promise<Control[]> {
+        return request<Control[]>(`/api/assets/${assetID}/controls`);
+    },
+
+    attachControl(assetID: number, controlID: number): Promise<void> {
+        return request<void>(`/api/assets/${assetID}/controls`, {
+            method: "POST",
+            body: JSON.stringify({ control_id: controlID }),
+        });
+    },
+
+    detachControl(assetID: number, controlID: number): Promise<void> {
+        return request<void>(`/api/assets/${assetID}/controls/${controlID}`, { method: "DELETE" });
+    },
+
+    getAssetAttackPaths(assetID: number): Promise<AssetAttackPathsResponse> {
+        return request<AssetAttackPathsResponse>(`/api/risk/asset/${assetID}/attack-paths`);
+    },
+
+    // P9: каталог угроз ФСТЭК и справочники.
+    getThreatsAll(limit = 500, offset = 0): Promise<ThreatFull[]> {
+        return request<ThreatFull[]>(`/api/threats?limit=${limit}&offset=${offset}`);
+    },
+    updateThreat(id: number, payload: ThreatUpdatePayload): Promise<ThreatFull> {
+        return request<ThreatFull>(`/api/threats/${id}`, {
+            method: "PUT",
+            body: JSON.stringify(payload),
+        });
+    },
+    getAssetTypes(): Promise<AssetTypeRef[]> {
+        return request<AssetTypeRef[]>("/api/asset-types");
+    },
+    getVLCategories(): Promise<VLCategoryRef[]> {
+        return request<VLCategoryRef[]>("/api/vl-categories");
+    },
+
+    // Compliance / ОСЗ — оценка состояния защищённости
+    getComplianceStandards(): Promise<ComplianceStandard[]> {
+        return request<ComplianceStandard[]>("/api/compliance/standards");
+    },
+    getAssetCompliance(assetID: number): Promise<AssetComplianceOverview[]> {
+        return request<AssetComplianceOverview[]>(`/api/compliance/asset/${assetID}`);
+    },
+    getAssetComplianceDetail(assetID: number, standardCode: string): Promise<AssetStandardCompliance> {
+        return request<AssetStandardCompliance>(`/api/compliance/asset/${assetID}/standard/${standardCode}`);
+    },
+
+    // Organization-level
+    getOrganizationOverview(): Promise<OrganizationOverview> {
+        return request<OrganizationOverview>("/api/organization/overview");
+    },
+    getOrganizationAssetMatrix(): Promise<OrganizationAssetRow[]> {
+        return request<OrganizationAssetRow[]>("/api/organization/asset-matrix");
+    },
+    getOrganizationCriticalRisks(limit = 20): Promise<OrganizationCriticalRisk[]> {
+        return request<OrganizationCriticalRisk[]>(`/api/organization/critical-risks?limit=${limit}`);
+    },
 };
+
+// ---------- P8 типы ----------
+
+export interface AssetSoftwareLink {
+    link: {
+        id: number;
+        asset_id: number;
+        software_id: number;
+        version?: string;
+        install_date?: string;
+        license_type?: string;
+        license_expires?: string;
+        notes?: string;
+        created_at: string;
+        updated_at: string;
+    };
+    software: Software;
+}
+
+export interface AssetVulnerability {
+    id: number;
+    asset_id: number;
+    bdu_id: string;
+    cve?: string;
+    cwe?: string;
+    vl_category_id?: number;
+    cvss_score?: number;
+    severity_level?: number;
+    title?: string;
+    source: string; // "auto:asset_software" | "manual"
+    software_id?: number;
+    status: string;
+    discovered_at: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface Control {
+    id: number;
+    name: string;
+    control_type_id?: number;
+    description?: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface AssetAttackPathsResponse {
+    asset: { id: number; name: string };
+    aggregate: {
+        w_max: number;
+        level: string;
+        threat_count: number;
+        uncovered_count: number;
+    };
+    paths: unknown[]; // подробные тип в types/riskGraph.ts; здесь не нужны
+}
+
+// ---------- P9 типы ----------
+
+export interface ThreatFull {
+    id: number;
+    name: string;
+    threat_category_id?: number;
+    source_type: string; // "external" | "internal" | "third_party"
+    description?: string;
+    q_threat: number;
+    q_severity: number;
+    bdu_id?: string;
+    applies_to_targets?: string;
+    applies_to_asset_types?: number[];
+    impact_c: boolean;
+    impact_i: boolean;
+    impact_a: boolean;
+    status?: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface ThreatUpdatePayload {
+    name: string;
+    threat_category_id?: number | null;
+    source_type: string;
+    description?: string | null;
+    q_threat: number;
+    q_severity: number;
+    bdu_id?: string | null;
+    applies_to_targets?: string | null;
+    applies_to_asset_types?: number[];
+    impact_c: boolean;
+    impact_i: boolean;
+    impact_a: boolean;
+}
+
+export interface AssetTypeRef {
+    id: number;
+    name: string;
+    description?: string;
+}
+
+export interface VLCategoryRef {
+    id: number;
+    code: string;
+    name: string;
+    description?: string;
+}
+
+// ---------- Compliance ----------
+
+export interface ComplianceStandard {
+    id: number;
+    code: string;
+    name: string;
+    full_name: string;
+    jurisdiction: "RU" | "INT";
+    description?: string;
+    sort_order: number;
+}
+
+export interface ComplianceRequirement {
+    id: number;
+    standard_id: number;
+    code: string;
+    category: string;
+    title: string;
+    description?: string;
+    priority: 1 | 2 | 3;
+    sort_order: number;
+}
+
+export interface RequirementStatus {
+    requirement: ComplianceRequirement;
+    coverage: number;
+    covering_controls?: Control[];
+    missing_controls?: Control[];
+}
+
+export interface AssetComplianceOverview {
+    standard: ComplianceStandard;
+    overall_score: number;
+    covered_count: number;
+    partial_count: number;
+    uncovered_count: number;
+    total_count: number;
+}
+
+export interface AssetStandardCompliance extends AssetComplianceOverview {
+    requirements: RequirementStatus[];
+}
+
+// ---------- Organization-level ----------
+
+export interface OrganizationAssetTypeBucket {
+    type_id?: number;
+    type_name: string;
+    count: number;
+}
+
+export interface OrganizationComplianceSummary {
+    standard: ComplianceStandard;
+    avg_score: number;
+    min_score: number;
+    max_score: number;
+    assets_count: number;
+}
+
+export interface OrganizationOverview {
+    total_assets: number;
+    isolated_assets: number;
+    assets_by_environment: Record<string, number>;
+    assets_by_type: OrganizationAssetTypeBucket[];
+    risk_distribution: Record<string, number>;
+    w_max: number;
+    w_max_asset?: string;
+    w_max_threat?: string;
+    avg_w_per_asset: number;
+    total_controls: number;
+    uncovered_vls: number;
+    compliance_by_standard: OrganizationComplianceSummary[];
+}
+
+export interface OrganizationAssetRow {
+    asset_id: number;
+    name: string;
+    type_name?: string;
+    environment?: string;
+    is_isolated: boolean;
+    w_max: number;
+    level: string;
+    threat_count: number;
+    control_count: number;
+    compliance_by_standard: AssetComplianceOverview[];
+}
+
+export interface OrganizationCriticalRisk {
+    asset_id: number;
+    asset_name: string;
+    threat_id: number;
+    threat_name: string;
+    bdu_id?: string;
+    w: number;
+    level: string;
+}

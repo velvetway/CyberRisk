@@ -13,6 +13,13 @@ import { AssetsPage } from "./pages/AssetsPage";
 import { AssetFormPage } from "./pages/AssetFormPage";
 import { PtsziModelPage } from "./pages/PtsziModelPage";
 import { OptimizerPage } from "./pages/OptimizerPage";
+import { AssetDetailPage } from "./pages/AssetDetailPage";
+import { ThreatsCatalogPage } from "./pages/ThreatsCatalogPage";
+import { SoftwareCatalogPage } from "./pages/SoftwareCatalogPage";
+import { RiskGraphPage } from "./pages/RiskGraphPage";
+import { DashboardPage } from "./pages/DashboardPage";
+import { OrganizationPage } from "./pages/OrganizationPage";
+import { ControlCatalogPage } from "./pages/ControlCatalogPage";
 
 type Theme = 'dark' | 'light';
 type Accent = 'indigo' | 'cyan' | 'emerald' | 'amber' | 'crimson';
@@ -31,11 +38,9 @@ function loadState(): PersistedState {
 
 const BC_MAP: Record<string, string[]> = {
   dashboard:  ['Платформа', 'Обзор'],
-  riskmap:    ['Платформа', 'Карта рисков'],
   graph:      ['Платформа', 'Граф атаки'],
   assets:     ['Платформа', 'Реестр активов'],
   software:   ['Справочники', 'ПО (Минцифры)'],
-  simulator:  ['Платформа', 'Симулятор риска'],
   threats:    ['Справочники', 'Каталог угроз'],
   vulns:      ['Справочники', 'Уязвимости'],
   reports:    ['Справочники', 'Отчёты'],
@@ -118,18 +123,21 @@ function RoutedApp() {
       <Route path="/register" element={<RegisterPage />} />
 
       {/* Protected pages wrapped in PageShell */}
-      <Route path="/" element={<Navigate to="/ptszi/model" replace />} />
+      <Route path="/" element={<LayoutGuard><DashboardPage /></LayoutGuard>} />
       <Route path="/assets" element={<LayoutGuard><AssetsPage /></LayoutGuard>} />
       <Route path="/assets/new" element={<LayoutGuard><AssetFormPage /></LayoutGuard>} />
       <Route path="/assets/edit/:id" element={<LayoutGuard><AssetFormPage /></LayoutGuard>} />
+      <Route path="/assets/:id" element={<LayoutGuard><AssetDetailPage /></LayoutGuard>} />
       <Route path="/assets/:id/risks" element={<LayoutGuard><AssetPTSZIForward /></LayoutGuard>} />
-      <Route path="/software" element={<Navigate to="/ptszi/model" replace />} />
-      <Route path="/risk/preview" element={<Navigate to="/ptszi/model" replace />} />
-      <Route path="/risk/map" element={<Navigate to="/ptszi/model" replace />} />
+      <Route path="/software" element={<LayoutGuard><SoftwareCatalogPage /></LayoutGuard>} />
+      <Route path="/threats" element={<LayoutGuard><ThreatsCatalogPage /></LayoutGuard>} />
+      <Route path="/organization" element={<LayoutGuard><OrganizationPage /></LayoutGuard>} />
+      <Route path="/controls" element={<LayoutGuard><ControlCatalogPage /></LayoutGuard>} />
       <Route path="/ptszi/model" element={<LayoutGuard><PtsziModelPage /></LayoutGuard>} />
       <Route path="/ptszi/optimizer" element={<LayoutGuard><OptimizerPage /></LayoutGuard>} />
-      <Route path="/risk/graph" element={<Navigate to="/ptszi/model" replace />} />
-      <Route path="/risk/graph/:assetId" element={<LayoutGuard><AssetPTSZIForward /></LayoutGuard>} />
+      <Route path="/risk/graph/:assetId" element={<LayoutGuard><RiskGraphPage /></LayoutGuard>} />
+      <Route path="/risk/preview" element={<Navigate to="/ptszi/model" replace />} />
+      <Route path="/risk/map" element={<Navigate to="/ptszi/model" replace />} />
       <Route path="*" element={<LayoutGuard><AssetsPage /></LayoutGuard>} />
     </Routes>
   );

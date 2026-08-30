@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	"Diplom/internal/bdu"
 	"Diplom/internal/config"
 	"Diplom/internal/repository"
 	httpTransport "Diplom/internal/transport/http"
@@ -33,8 +34,22 @@ func main() {
 
 	log.Println("connected to database")
 
-	// 3. Создаём Fiber-приложение
-	app := httpTransport.NewServer(ctx, db, cfg.JWTSecret, cfg.BDUSQLitePath, cfg.MinreestrSQLitePath, cfg.SZISQLitePath)
+	// 3. Открываем (опционально) снимок БДУ ФСТЭК. Если файла нет —
+	//    автодетекция CVE по установленному ПО будет выключена, но всё
+	//    остальное API работает как обычно.
+	var bduSnap *bdu.Snapshot
+	if snap, err := bdu.Open(cfg.BDUSQLitePath); err != nil {
+		log.Printf("bdu snapshot at %q unavailable: %v — autodetect disabled", cfg.BDUSQLitePath, err)
+	} else {
+		bduSnap = snap
+		defer bduSnap.Close()
+		if v, sw, cwe, err := bduSnap.Stats(ctx); err == nil {
+			log.Printf("bdu snapshot ready: %d vulns / %d software / %d cwe rows", v, sw, cwe)
+		}
+	}
+
+	// 4. Создаём Fiber-приложение
+	app := httpTransport.NewServer(ctx, db, cfg, bduSnap)
 
 	// 4. Запускаем сервер с graceful shutdown
 	go func() {

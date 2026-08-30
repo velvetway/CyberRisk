@@ -67,12 +67,12 @@ SELECT setval(pg_get_serial_sequence('control_types', 'id'), COALESCE((SELECT MA
 -- 5. ASSETS (демонстрационные данные)
 -- ============================================
 
-INSERT INTO assets (name, asset_type_id, type, owner, description, location, business_criticality, confidentiality, integrity, availability, environment) VALUES
-    ('Web Application Server', 1, 'server', 'IT Department', 'Production web application server hosting customer-facing portal', 'Datacenter A, Rack 12', 5, 4, 5, 5, 'prod'),
-    ('Customer Database', 2, 'database', 'Data Team', 'PostgreSQL database containing customer personal information and transaction history', 'Datacenter A, Rack 15', 5, 5, 5, 4, 'prod'),
-    ('Employee Workstation Network', 4, 'network', 'IT Department', 'Internal network segment for employee workstations and office equipment', 'Office Building, VLAN 100', 3, 3, 3, 4, 'prod'),
-    ('Development Server', 1, 'server', 'Development Team', 'Development and testing environment server', 'Datacenter B, Rack 5', 2, 2, 2, 3, 'dev'),
-    ('Mobile App Backend', 3, 'application', 'Mobile Team', 'API backend for mobile applications', 'Cloud AWS', 4, 4, 4, 5, 'prod');
+INSERT INTO assets (name, asset_type_id, owner, description, business_criticality, confidentiality, integrity, availability, environment) VALUES
+    ('Web Application Server', 1, 'IT Department', 'Production web application server hosting customer-facing portal', 5, 4, 5, 5, 'prod'),
+    ('Customer Database', 2, 'Data Team', 'PostgreSQL database containing customer personal information and transaction history', 5, 5, 5, 4, 'prod'),
+    ('Employee Workstation Network', 4, 'IT Department', 'Internal network segment for employee workstations and office equipment', 3, 3, 3, 4, 'prod'),
+    ('Development Server', 1, 'Development Team', 'Development and testing environment server', 2, 2, 2, 3, 'dev'),
+    ('Mobile App Backend', 3, 'Mobile Team', 'API backend for mobile applications', 4, 4, 4, 5, 'prod');
 
 -- ============================================
 -- 6. THREATS (демонстрационные данные)
@@ -145,3 +145,13 @@ INSERT INTO recommendation_templates (code, title, description, asset_type_id, t
     ('REC-005', 'Security Awareness Training', 'Conduct quarterly security awareness training for all employees to reduce insider threat risks', NULL, 6, NULL, 'low'),
     ('REC-006', 'Backup Strategy Implementation', 'Implement 3-2-1 backup strategy with regular testing of restoration procedures', NULL, 2, NULL, 'high'),
     ('REC-007', 'TLS Configuration Update', 'Upgrade to TLS 1.3, disable deprecated protocols and weak cipher suites', 1, NULL, 5, 'medium');
+
+-- ============================================
+-- 12. RESET SEQUENCES
+-- ============================================
+
+SELECT setval('asset_types_id_seq', (SELECT MAX(id) FROM asset_types));
+SELECT setval('threat_categories_id_seq', (SELECT MAX(id) FROM threat_categories));
+SELECT setval('vulnerability_categories_id_seq', (SELECT MAX(id) FROM vulnerability_categories));
+SELECT setval('control_types_id_seq', (SELECT MAX(id) FROM control_types));
+

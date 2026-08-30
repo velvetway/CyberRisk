@@ -24,11 +24,19 @@ export const TopBar: React.FC<TopBarProps> = ({ breadcrumbs, onCmdK, onThemeTogg
   let username = 'И. Петров';
   let role = 'CISO · ADMIN';
   let initials = 'ИП';
-  let logout: (() => void) | null = null;
+  let handleLogout = () => {};
+
   try {
     // eslint-disable-next-line react-hooks/rules-of-hooks
-    const { user, logout: authLogout } = useAuth();
-    logout = authLogout;
+    const { user, logout } = useAuth();
+    if (logout) {
+      // Явный переход на страницу входа: без него после выхода остаётся
+      // отрисованный интерфейс, который уже ничего не может загрузить.
+      handleLogout = () => {
+        logout();
+        window.location.href = '/login';
+      };
+    }
     if (user) {
       username = user.username;
       initials = user.username.slice(0, 2).toUpperCase();
@@ -170,13 +178,7 @@ export const TopBar: React.FC<TopBarProps> = ({ breadcrumbs, onCmdK, onThemeTogg
           </div>
         </div>
       </div>
-      <IconBtn
-        onClick={() => {
-          logout?.();
-          window.location.href = '/login';
-        }}
-        title="Выйти"
-      >
+      <IconBtn onClick={handleLogout} title="Выйти">
         <Icon name="logout" size={15} />
       </IconBtn>
     </div>

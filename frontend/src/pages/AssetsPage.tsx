@@ -9,46 +9,22 @@ type Level = 'critical' | 'high' | 'medium' | 'low';
 
 interface EnrichedAsset {
   asset: Asset;
-  maxScore: number;
+  wMax: number;
   level: Level | null;
   threatCount: number;
-  vulnCount: number;
 }
 
-function criticalityTone(bc: number): { tone: 'danger' | 'warn' | 'ghost'; short: string } {
-  if (bc >= 5) return { tone: 'danger', short: 'CRIT' };
-  if (bc >= 4) return { tone: 'warn', short: 'HIGH' };
-  if (bc >= 3) return { tone: 'ghost', short: 'MED' };
-  return { tone: 'ghost', short: 'LOW' };
+function contourLabel(a: Asset): string {
+  return a.is_isolated ? 'Изолированный (Z=0.5)' : 'Открытый (Z=1.0)';
 }
 
-function segmentLabel(a: Asset): string {
-  if (a.is_isolated) return 'Изолированный';
-  if (a.has_internet_access) return 'DMZ';
-  return 'Внутренний';
-}
-
-function kiiLabel(k: string | undefined | null): string {
-  if (!k || k === 'none') return '—';
-  if (k === 'cat1') return '1 категория';
-  if (k === 'cat2') return '2 категория';
-  if (k === 'cat3') return '3 категория';
-  return k;
-}
-
-function pdnLabel(p: string | undefined | null): string {
-  if (!p) return '—';
-  if (/^uz\d$/.test(p)) return 'УЗ-' + p.slice(2);
-  return p;
-}
-
-function regulatoryTags(a: Asset): string[] {
-  const tags: string[] = [];
-  if (a.kii_category && a.kii_category !== 'none') tags.push('КИИ');
-  if (a.has_personal_data) tags.push('152-ФЗ');
-  if (a.data_category === 'state_secret') tags.push('Гостайна');
-  if (a.data_category === 'banking_secret') tags.push('КТайна');
-  return tags;
+function envLabel(env: string): string {
+  switch (env) {
+    case 'prod': return 'Production';
+    case 'test': return 'Test';
+    case 'dev': return 'Development';
+    default: return env || '—';
+  }
 }
 
 export const AssetsPage: React.FC = () => {
@@ -74,18 +50,16 @@ export const AssetsPage: React.FC = () => {
     }).catch(e => { setErr(e.message); setLoading(false); });
   }, []);
 
-  // Enrich assets with risk aggregates from overview
   const enriched = useMemo((): EnrichedAsset[] => {
     return assets.map(asset => {
       const ap = points.filter(p => p.asset_id === asset.id);
-      const maxScore = ap.reduce((m, p) => Math.max(m, p.score ?? 0), 0);
-      const topPoint = ap.reduce((best: RiskOverviewPoint | null, p) => (!best || (p.score ?? 0) > (best.score ?? 0)) ? p : best, null);
+      const wMax = ap.reduce((m, p) => Math.max(m, p.w ?? 0), 0);
+      const topPoint = ap.reduce((best: RiskOverviewPoint | null, p) => (!best || (p.w ?? 0) > (best.w ?? 0)) ? p : best, null);
       return {
         asset,
-        maxScore,
+        wMax,
         level: topPoint ? (topPoint.level as Level) : null,
         threatCount: ap.length,
-        vulnCount: 0, // no vuln-count endpoint yet
       };
     });
   }, [assets, points]);
@@ -109,13 +83,12 @@ export const AssetsPage: React.FC = () => {
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}
       style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}
     >
-      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16 }}>
         <div>
           <div style={{ fontSize: 'var(--text-xs)', color: 'var(--fg-dim)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Реестр ИТ-активов</div>
           <h1 style={{ margin: 0, fontSize: 'var(--text-2xl)', fontWeight: 600, letterSpacing: '-0.02em' }}>Активы организации</h1>
           <div style={{ fontSize: 'var(--text-sm)', color: 'var(--fg-muted)', marginTop: 4 }}>
-            {filtered.length} из {assets.length} · CIA, категория КИИ, уровень защищённости ПДн
+            {filtered.length} из {assets.length} · риск рассчитан по формуле W (модель ПТСЗИ)
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -135,7 +108,6 @@ export const AssetsPage: React.FC = () => {
 
       {!loading && !err && (
         <>
-          {/* Filter bar */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'var(--bg-elev-1)', border: '1px solid var(--border)', borderRadius: 'var(--r-md)' }}>
             <Icon name="search" size={14} color="var(--fg-dim)" />
             <input
@@ -167,7 +139,7 @@ export const AssetsPage: React.FC = () => {
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--text-sm)' }}>
                   <thead>
                     <tr style={{ background: 'var(--bg-elev-2)', borderBottom: '1px solid var(--border)' }}>
-                      {['ID', 'Актив', 'Тип', 'CIA', 'Критич.', 'КИИ', 'ПДн', 'Сегмент', 'Угроз', 'Риск', 'Скор', ''].map((h, i) => (
+                      {['ID', 'Актив', 'Среда', 'Контур', 'Угроз', 'W max', 'Уровень', ''].map((h, i) => (
                         <th key={i} style={{
                           padding: '8px 10px', textAlign: 'left',
                           fontSize: 'var(--text-xs)', fontWeight: 500, color: 'var(--fg-dim)',
@@ -180,8 +152,7 @@ export const AssetsPage: React.FC = () => {
                   </thead>
                   <tbody>
                     {filtered.map((e, idx) => {
-                      const { asset, level, maxScore, threatCount } = e;
-                      const crit = criticalityTone(asset.business_criticality);
+                      const { asset, level, wMax, threatCount } = e;
                       return (
                         <tr key={asset.id}
                           onClick={() => setSel(e)}
@@ -199,44 +170,22 @@ export const AssetsPage: React.FC = () => {
                             <div style={{ fontWeight: 500 }}>{asset.name}</div>
                             <div style={{ fontSize: 11, color: 'var(--fg-dim)', marginTop: 2 }}>{asset.owner ?? '—'}</div>
                           </td>
-                          <td style={{ padding: '10px', color: 'var(--fg-muted)' }}>{asset.type ?? '—'}</td>
+                          <td style={{ padding: '10px', color: 'var(--fg-muted)' }}>{envLabel(asset.environment)}</td>
                           <td style={{ padding: '10px' }}>
-                            <div style={{ display: 'flex', gap: 2, fontFamily: 'var(--font-mono)', fontSize: 11 }}>
-                              {[
-                                { k: 'C', v: asset.confidentiality },
-                                { k: 'I', v: asset.integrity },
-                                { k: 'A', v: asset.availability }
-                              ].map(x => (
-                                <span key={x.k} style={{
-                                  width: 18, height: 18, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                                  background: x.v >= 4 ? 'var(--risk-critical-bg)' : x.v === 3 ? 'var(--risk-medium-bg)' : 'var(--bg-elev-3)',
-                                  color: x.v >= 4 ? 'var(--risk-critical)' : x.v === 3 ? 'var(--risk-medium)' : 'var(--fg-dim)',
-                                  borderRadius: 3, fontWeight: 600,
-                                }}>{x.v}</span>
-                              ))}
-                            </div>
-                          </td>
-                          <td style={{ padding: '10px' }}>
-                            <Chip tone={crit.tone} mono>{crit.short}</Chip>
-                          </td>
-                          <td style={{ padding: '10px', fontFamily: 'var(--font-mono)', fontSize: 11, color: asset.kii_category && asset.kii_category !== 'none' ? 'var(--risk-high)' : 'var(--fg-faint)' }}>{kiiLabel(asset.kii_category)}</td>
-                          <td style={{ padding: '10px', fontFamily: 'var(--font-mono)', fontSize: 11, color: asset.protection_level ? 'var(--fg-muted)' : 'var(--fg-faint)' }}>{pdnLabel(asset.protection_level)}</td>
-                          <td style={{ padding: '10px', fontSize: 11, color: 'var(--fg-muted)' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                              {asset.has_internet_access && <div title="Интернет" style={{ width: 5, height: 5, borderRadius: 999, background: 'var(--risk-high)' }} />}
-                              {segmentLabel(asset)}
-                            </div>
+                            <Chip tone={asset.is_isolated ? 'ghost' : 'warn'} mono>
+                              {asset.is_isolated ? 'Z=0.5' : 'Z=1.0'}
+                            </Chip>
                           </td>
                           <td style={{ padding: '10px', fontFamily: 'var(--font-mono)', fontSize: 12, textAlign: 'center', color: 'var(--fg-muted)' }}>{threatCount}</td>
                           <td style={{ padding: '10px' }}>
                             {level ? (
-                              <div style={{ width: 80, height: 4, background: 'var(--bg-elev-3)', borderRadius: 2, overflow: 'hidden' }}>
-                                <div style={{ width: `${maxScore / 25 * 100}%`, height: '100%', background: `var(--risk-${level})` }} />
+                              <div style={{ width: 100, height: 4, background: 'var(--bg-elev-3)', borderRadius: 2, overflow: 'hidden' }}>
+                                <div style={{ width: `${Math.min(100, wMax * 100)}%`, height: '100%', background: `var(--risk-${level})` }} />
                               </div>
                             ) : <span style={{ color: 'var(--fg-faint)', fontSize: 11 }}>—</span>}
                           </td>
                           <td style={{ padding: '10px' }}>
-                            {level ? <RiskBadge level={level} score={maxScore} compact /> : <span style={{ color: 'var(--fg-faint)', fontSize: 11 }}>—</span>}
+                            {level ? <RiskBadge level={level} score={Number(wMax.toFixed(2))} compact /> : <span style={{ color: 'var(--fg-faint)', fontSize: 11 }}>—</span>}
                           </td>
                           <td style={{ padding: '10px', width: 24 }}>
                             <IconBtn size={22}><Icon name="chevronR" size={12} /></IconBtn>
@@ -254,7 +203,7 @@ export const AssetsPage: React.FC = () => {
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 12 }}>
               {filtered.map(e => {
-                const { asset, level, maxScore } = e;
+                const { asset, level, wMax } = e;
                 return (
                   <div key={asset.id} onClick={() => setSel(e)} style={{
                     padding: 14, background: 'var(--bg-elev-1)', border: '1px solid var(--border)',
@@ -263,12 +212,12 @@ export const AssetsPage: React.FC = () => {
                     {level && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: `var(--risk-${level})` }} />}
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 }}>
                       <span className="mono" style={{ fontSize: 10, color: 'var(--fg-dim)' }}>A-{String(asset.id).padStart(3, '0')}</span>
-                      {level && <RiskBadge level={level} score={maxScore} compact />}
+                      {level && <RiskBadge level={level} score={Number(wMax.toFixed(2))} compact />}
                     </div>
                     <div style={{ fontSize: 'var(--text-md)', fontWeight: 500, marginBottom: 4 }}>{asset.name}</div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--fg-dim)', marginBottom: 12 }}>{asset.type ?? '—'} · {asset.owner ?? '—'}</div>
+                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--fg-dim)', marginBottom: 12 }}>{envLabel(asset.environment)} · {asset.owner ?? '—'}</div>
                     <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                      {regulatoryTags(asset).map(t => <Chip key={t} tone="ghost" mono>{t}</Chip>)}
+                      <Chip tone={asset.is_isolated ? 'ghost' : 'warn'} mono>{asset.is_isolated ? 'Z=0.5' : 'Z=1.0'}</Chip>
                     </div>
                   </div>
                 );
@@ -278,7 +227,6 @@ export const AssetsPage: React.FC = () => {
         </>
       )}
 
-      {/* Detail drawer */}
       {sel && (
         <div onClick={() => setSel(null)} style={{ position: 'fixed', inset: 0, background: 'oklch(0 0 0 / 0.4)', zIndex: 50, display: 'flex', justifyContent: 'flex-end' }}>
           <div onClick={e => e.stopPropagation()} style={{
@@ -295,24 +243,25 @@ export const AssetsPage: React.FC = () => {
             </div>
             <div style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, fontSize: 'var(--text-xs)' }}>
-                <div><div style={{ color: 'var(--fg-dim)' }}>Тип</div><div>{sel.asset.type ?? '—'}</div></div>
+                <div><div style={{ color: 'var(--fg-dim)' }}>Среда</div><div>{envLabel(sel.asset.environment)}</div></div>
                 <div><div style={{ color: 'var(--fg-dim)' }}>Владелец</div><div>{sel.asset.owner ?? '—'}</div></div>
-                <div><div style={{ color: 'var(--fg-dim)' }}>Сегмент</div><div>{segmentLabel(sel.asset)}</div></div>
-                <div><div style={{ color: 'var(--fg-dim)' }}>Интернет</div><div>{sel.asset.has_internet_access ? 'Да' : 'Нет'}</div></div>
-                <div><div style={{ color: 'var(--fg-dim)' }}>Категория КИИ</div><div className="mono">{kiiLabel(sel.asset.kii_category)}</div></div>
-                <div><div style={{ color: 'var(--fg-dim)' }}>УЗ ПДн</div><div className="mono">{pdnLabel(sel.asset.protection_level)}</div></div>
+                <div style={{ gridColumn: 'span 2' }}>
+                  <div style={{ color: 'var(--fg-dim)' }}>Контур (Z в формуле W)</div>
+                  <div>{contourLabel(sel.asset)}</div>
+                </div>
               </div>
               {sel.level && (
                 <div>
-                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--fg-dim)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 500, marginBottom: 8 }}>Текущий риск</div>
+                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--fg-dim)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 500, marginBottom: 8 }}>Текущий риск (W max)</div>
                   <div style={{ padding: 14, background: 'var(--bg-elev-2)', border: '1px solid var(--border)', borderRadius: 'var(--r-md)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <RiskBadge level={sel.level} />
-                    <div className="num" style={{ fontSize: 30, fontWeight: 600, color: `var(--risk-${sel.level})` }}>{sel.maxScore.toFixed(1)}</div>
+                    <div className="num" style={{ fontSize: 30, fontWeight: 600, color: `var(--risk-${sel.level})` }}>{sel.wMax.toFixed(2)}</div>
                   </div>
                 </div>
               )}
-              <Btn variant="primary" fullWidth icon={<Icon name="zap" size={13} />} onClick={() => navigate(`/assets/${sel.asset.id}/risks`)}>Профиль рисков</Btn>
-              <Btn variant="outline" fullWidth icon={<Icon name="edit" size={13} />} onClick={() => navigate(`/assets/edit/${sel.asset.id}`)}>Редактировать</Btn>
+              <Btn variant="primary" fullWidth icon={<Icon name="layers" size={13} />} onClick={() => navigate(`/assets/${sel.asset.id}`)}>Открыть карточку</Btn>
+              <Btn variant="outline" fullWidth icon={<Icon name="flow" size={13} />} onClick={() => navigate(`/risk/graph/${sel.asset.id}`)}>Граф атаки</Btn>
+              <Btn variant="ghost" fullWidth icon={<Icon name="edit" size={13} />} onClick={() => navigate(`/assets/edit/${sel.asset.id}`)}>Редактировать форму</Btn>
             </div>
           </div>
         </div>

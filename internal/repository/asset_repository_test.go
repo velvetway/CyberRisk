@@ -18,9 +18,9 @@ func TestAssetRepository_Create(t *testing.T) {
 	ctx := context.Background()
 
 	asset := &domain.Asset{
-		Name: "Test Server", BusinessCriticality: 3,
-		Confidentiality: 4, Integrity: 3, Availability: 5,
-		Environment: domain.AssetEnvProd, HasInternetAccess: true,
+		Name:        "Test Server",
+		Environment: domain.AssetEnvProd,
+		IsIsolated:  false,
 	}
 	err := repo.Create(ctx, asset)
 	require.NoError(t, err)
@@ -34,8 +34,7 @@ func TestAssetRepository_GetByID(t *testing.T) {
 	ctx := context.Background()
 
 	asset := &domain.Asset{
-		Name: "Test DB", BusinessCriticality: 4,
-		Confidentiality: 5, Integrity: 4, Availability: 3,
+		Name:        "Test DB",
 		Environment: domain.AssetEnvProd,
 	}
 	require.NoError(t, repo.Create(ctx, asset))
@@ -54,8 +53,7 @@ func TestAssetRepository_List(t *testing.T) {
 
 	for i := 0; i < 3; i++ {
 		require.NoError(t, repo.Create(ctx, &domain.Asset{
-			Name: fmt.Sprintf("Asset %d", i), BusinessCriticality: 3,
-			Confidentiality: 3, Integrity: 3, Availability: 3,
+			Name:        fmt.Sprintf("Asset %d", i),
 			Environment: domain.AssetEnvDev,
 		}))
 	}
@@ -72,18 +70,17 @@ func TestAssetRepository_Update(t *testing.T) {
 	ctx := context.Background()
 
 	asset := &domain.Asset{
-		Name: "Original", BusinessCriticality: 2,
-		Confidentiality: 2, Integrity: 2, Availability: 2,
+		Name:        "Original",
 		Environment: domain.AssetEnvDev,
 	}
 	require.NoError(t, repo.Create(ctx, asset))
 	asset.Name = "Updated"
-	asset.BusinessCriticality = 5
+	asset.IsIsolated = true
 	require.NoError(t, repo.Update(ctx, asset))
 
 	found, _ := repo.GetByID(ctx, asset.ID)
 	assert.Equal(t, "Updated", found.Name)
-	assert.Equal(t, int16(5), found.BusinessCriticality)
+	assert.True(t, found.IsIsolated)
 }
 
 func TestAssetRepository_Delete(t *testing.T) {
@@ -93,8 +90,7 @@ func TestAssetRepository_Delete(t *testing.T) {
 	ctx := context.Background()
 
 	asset := &domain.Asset{
-		Name: "ToDelete", BusinessCriticality: 1,
-		Confidentiality: 1, Integrity: 1, Availability: 1,
+		Name:        "ToDelete",
 		Environment: domain.AssetEnvTest,
 	}
 	require.NoError(t, repo.Create(ctx, asset))
