@@ -190,6 +190,7 @@ func NewServer(_ context.Context, db *pgxpool.Pool, jwtSecret, bduSQLitePath, mi
 	readOnly.Get("/ptszi/graph/:assetID/:threatID", ptsziHandler.graph)
 	readOnly.Get("/ptszi/assets/:assetID/optimize", optimizerHandler.optimize)
 	readOnly.Get("/ptszi/assets/:assetID/roadmap", optimizerHandler.roadmap)
+	readOnly.Get("/ptszi/assets/:assetID/sensitivity", optimizerHandler.sensitivity)
 	write.Put("/assets/:id/ptszi/vulnerable-links", ptsziHandler.updateAssetVulnerableLinks)
 	write.Put("/assets/:id/ptszi/controls", ptsziHandler.updateAssetControls)
 

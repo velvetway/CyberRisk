@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { api } from "../api/client";
 import { Asset } from "../types";
-import { AssetScale, OptimizerPlan, Roadmap } from "../types/optimizer";
+import { AssetScale, OptimizerPlan, Roadmap, SensitivityReport } from "../types/optimizer";
 import { Btn, Card, Chip, Icon, StatCard } from "../components/design";
 
 const money = (v: number) =>
@@ -82,6 +82,8 @@ export const OptimizerPage: React.FC = () => {
   const [mode, setMode] = useState<"budget" | "roadmap">("budget");
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [sensitivity, setSensitivity] = useState<SensitivityReport | null>(null);
+  const [checkingStability, setCheckingStability] = useState(false);
 
   useEffect(() => {
     api.getAssets()
@@ -100,6 +102,7 @@ export const OptimizerPage: React.FC = () => {
     setErr(null);
     try {
       const cls = maxClass === "" ? undefined : Number(maxClass);
+      setSensitivity(null);
       if (mode === "budget") {
         setPlan(await api.optimizeAsset(assetId, budget, scale, cls));
         setRoadmap(null);
@@ -111,6 +114,20 @@ export const OptimizerPage: React.FC = () => {
       setErr(e.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const checkStability = async () => {
+    if (!assetId) return;
+    setCheckingStability(true);
+    setErr(null);
+    try {
+      const cls = maxClass === "" ? undefined : Number(maxClass);
+      setSensitivity(await api.getAssetSensitivity(assetId, budget, scale, 300, 0.2, cls));
+    } catch (e: any) {
+      setErr(e.message);
+    } finally {
+      setCheckingStability(false);
     }
   };
 
@@ -319,6 +336,73 @@ export const OptimizerPage: React.FC = () => {
           )}
         </Card>
       ))}
+
+      {plan && (
+        <Card
+          title="Устойчивость плана"
+          subtitle="Коэффициенты покрытия и эффективности заданы экспертно — проверяем, зависит ли от них решение"
+          dense
+          action={
+            <Btn size="sm" variant="secondary" onClick={checkStability} disabled={checkingStability}>
+              {checkingStability ? "Считаем…" : sensitivity ? "Пересчитать" : "Проверить"}
+            </Btn>
+          }
+        >
+          {!sensitivity ? (
+            <div style={{ color: "var(--fg-muted)", fontSize: "var(--text-sm)" }}>
+              300 прогонов со сдвигом всех коэффициентов на ±20%. Покажет, меняется ли
+              состав закупки, если оценки окажутся неточными.
+            </div>
+          ) : (
+            <div style={{ display: "grid", gap: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                <Chip
+                  tone={
+                    sensitivity.composition_stability >= 0.9 ? "success"
+                      : sensitivity.composition_stability >= 0.7 ? "accent"
+                      : sensitivity.composition_stability >= 0.4 ? "warn" : "danger"
+                  }
+                  mono
+                >
+                  состав стабилен в {(100 * sensitivity.composition_stability).toFixed(0)}% прогонов
+                </Chip>
+                <span style={{ fontSize: "var(--text-sm)", color: "var(--fg-muted)" }}>
+                  {sensitivity.verdict}
+                </span>
+              </div>
+
+              <div style={{ fontSize: "var(--text-sm)" }}>
+                Снижение риска: базовое{" "}
+                <span className="mono">{sensitivity.base_delta.toFixed(4)}</span>, при возмущении
+                коэффициентов{" "}
+                <span className="mono">
+                  {sensitivity.min_delta.toFixed(4)}…{sensitivity.max_delta.toFixed(4)}
+                </span>{" "}
+                (σ = <span className="mono">{sensitivity.std_dev.toFixed(4)}</span>)
+              </div>
+
+              <div style={{ display: "grid", gap: 6 }}>
+                {sensitivity.controls.map(c => (
+                  <div key={c.control_code} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <Chip tone="accent" mono>{c.control_code}</Chip>
+                    <div style={{ flex: 1, height: 6, background: "var(--bg-elev-2)", borderRadius: 3 }}>
+                      <div style={{
+                        width: `${100 * c.frequency}%`,
+                        height: "100%",
+                        borderRadius: 3,
+                        background: c.frequency >= 0.9 ? "var(--success)" : "var(--warn)",
+                      }} />
+                    </div>
+                    <span className="mono" style={{ fontSize: "var(--text-xs)", minWidth: 42, textAlign: "right" }}>
+                      {(100 * c.frequency).toFixed(0)}%
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </Card>
+      )}
 
       {warnings.length > 0 && (
         <Card title="Оговорки к расчёту" dense>

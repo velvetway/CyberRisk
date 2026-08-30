@@ -103,3 +103,30 @@ export interface Roadmap {
     skipped?: SkippedCandidate[];
     warnings?: string[];
 }
+
+/** Устойчивость отдельного метода к неточности коэффициентов. */
+export interface ControlStability {
+    control_code: string;
+    product_name?: string;
+    /** Доля прогонов, где метод вошёл в план, от 0 до 1. */
+    frequency: number;
+    runs: number;
+}
+
+/** Отчёт о зависимости плана от точности экспертных коэффициентов. */
+export interface SensitivityReport {
+    asset_id: number;
+    budget: number;
+    runs: number;
+    /** Коридор возмущения долей: 0.2 означает ±20%. */
+    variation: number;
+    base_delta: number;
+    mean_delta: number;
+    min_delta: number;
+    max_delta: number;
+    std_dev: number;
+    /** Доля прогонов, где состав плана совпал с исходным. */
+    composition_stability: number;
+    controls: ControlStability[];
+    verdict: string;
+}

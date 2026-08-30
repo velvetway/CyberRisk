@@ -19,7 +19,7 @@ import {
     ThreatSource,
     DestructiveAction,
 } from "../types/ptszi";
-import { AssetScale, OptimizerPlan, Roadmap } from "../types/optimizer";
+import { AssetScale, OptimizerPlan, Roadmap, SensitivityReport } from "../types/optimizer";
 
 function getToken(): string | null {
     return localStorage.getItem("token");
@@ -274,6 +274,32 @@ export const api = {
         });
         if (maxClass) params.set("max_class", String(maxClass));
         return request<Roadmap>(`/api/ptszi/assets/${assetId}/roadmap?${params}`);
+    },
+
+    /**
+     * Проверка устойчивости плана к неточности экспертных коэффициентов.
+     *
+     * Коэффициенты покрытия и эффективности задаются оценочно, поэтому
+     * важно знать, меняется ли состав закупки при их разумном сдвиге.
+     */
+    getAssetSensitivity(
+        assetId: number,
+        budget: number,
+        scale: AssetScale,
+        runs = 300,
+        variation = 0.2,
+        maxClass?: number,
+    ): Promise<SensitivityReport> {
+        const params = new URLSearchParams({
+            budget: String(budget),
+            workstations: String(scale.workstations),
+            servers: String(scale.servers),
+            appliances: String(scale.appliances),
+            runs: String(runs),
+            variation: String(variation),
+        });
+        if (maxClass) params.set("max_class", String(maxClass));
+        return request<SensitivityReport>(`/api/ptszi/assets/${assetId}/sensitivity?${params}`);
     },
 
     getPtsziControls(): Promise<PtsziControl[]> {

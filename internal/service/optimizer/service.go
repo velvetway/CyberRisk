@@ -23,6 +23,7 @@ const defaultEffectiveness = 0.8
 type Service interface {
 	Optimize(ctx context.Context, assetID int64, budget float64, maxClass *int16, scale AssetScale) (*Plan, error)
 	Roadmap(ctx context.Context, assetID int64, budgetPerYear float64, years int, maxClass *int16, scale AssetScale) (*Roadmap, error)
+	Sensitivity(ctx context.Context, assetID int64, budget float64, maxClass *int16, scale AssetScale, runs int, variation float64) (*SensitivityReport, error)
 }
 
 type service struct {
@@ -165,6 +166,53 @@ func (s *service) Roadmap(
 	roadmap.Warnings = append(warnings(steps), expiryWarnings(purchases, years*12)...)
 
 	return roadmap, nil
+}
+
+// Sensitivity проверяет, насколько план зависит от точности экспертных
+// коэффициентов.
+//
+// Коэффициенты покрытия и эффективности заданы оценочно, и без такой проверки
+// на вопрос «а почему именно 0.75?» ответить нечем. С ней ответ становится
+// предметным: при сдвиге всех коэффициентов на ±20% состав закупки меняется
+// (или не меняется) в такой-то доле прогонов.
+func (s *service) Sensitivity(
+	ctx context.Context,
+	assetID int64,
+	budget float64,
+	maxClass *int16,
+	scale AssetScale,
+	runs int,
+	variation float64,
+) (*SensitivityReport, error) {
+	if budget <= 0 {
+		return nil, fmt.Errorf("budget must be positive")
+	}
+	if s.szi == nil || !s.szi.IsAvailable() {
+		return nil, fmt.Errorf("szi catalog is not available")
+	}
+
+	paths, err := s.ptszi.ApplicableThreats(ctx, assetID)
+	if err != nil {
+		return nil, fmt.Errorf("applicable threats: %w", err)
+	}
+	if len(paths) == 0 {
+		return &SensitivityReport{AssetID: assetID, Budget: budget,
+			Verdict: "у актива нет применимых сценариев — анализировать нечего"}, nil
+	}
+
+	candidates, _, err := s.buildCandidates(ctx, paths, maxClass, scale)
+	if err != nil {
+		return nil, err
+	}
+	sortCandidates(candidates)
+
+	// Зерно выводится из параметров запроса, а не из времени: одинаковый
+	// запрос обязан давать одинаковый отчёт, иначе устойчивость не обсудить.
+	seed := assetID*1_000_003 + int64(budget) + int64(scale.normalized().Workstations)
+	report := analyzeSensitivity(paths, candidates, budget, runs, variation, seed)
+	report.AssetID = assetID
+	report.Budget = budget
+	return &report, nil
 }
 
 // buildCandidates собирает по одному кандидату на каждый невнедрённый метод:

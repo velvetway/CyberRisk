@@ -126,3 +126,53 @@ func (h *OptimizerHandler) roadmap(c *fiber.Ctx) error {
 	}
 	return c.JSON(plan)
 }
+
+// sensitivity показывает, насколько план зависит от точности экспертных
+// коэффициентов покрытия и эффективности.
+//
+// Параметры:
+//
+//	budget    — предел затрат (обязателен);
+//	runs      — число прогонов, по умолчанию 200, не больше 2000;
+//	variation — коридор возмущения долей: 0.2 означает ±20%.
+func (h *OptimizerHandler) sensitivity(c *fiber.Ctx) error {
+	assetID, err := strconv.ParseInt(c.Params("assetID"), 10, 64)
+	if err != nil || assetID <= 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid asset id"})
+	}
+
+	budget, err := strconv.ParseFloat(c.Query("budget"), 64)
+	if err != nil || budget <= 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "budget must be a positive number"})
+	}
+
+	runs := 0
+	if raw := c.Query("runs"); raw != "" {
+		if v, err := strconv.Atoi(raw); err == nil {
+			runs = v
+		}
+	}
+
+	variation := 0.0
+	if raw := c.Query("variation"); raw != "" {
+		if v, err := strconv.ParseFloat(raw, 64); err == nil {
+			variation = v
+		}
+	}
+
+	var maxClass *int16
+	if raw := c.Query("max_class"); raw != "" {
+		v, err := strconv.ParseInt(raw, 10, 16)
+		if err != nil || v < 1 || v > 6 {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "max_class must be 1..6"})
+		}
+		x := int16(v)
+		maxClass = &x
+	}
+
+	report, err := h.svc.Sensitivity(c.Context(), assetID, budget, maxClass, parseScale(c), runs, variation)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(report)
+}
