@@ -2,6 +2,7 @@ package optimizer
 
 import (
 	"testing"
+	"time"
 
 	"Diplom/internal/domain"
 )
@@ -60,7 +61,7 @@ func TestPlanRoadmap_RespectsYearlyBudget(t *testing.T) {
 	sortCandidates(candidates)
 
 	budget := 100_000.0
-	periods, purchases := planRoadmap(paths, candidates, budget, 3)
+	periods, purchases := planRoadmap(paths, candidates, budget, 3, time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
 
 	if len(periods) != 3 {
 		t.Fatalf("ожидалось 3 периода, получено %d", len(periods))
@@ -102,8 +103,9 @@ func TestPlanRoadmap_BiggerBudgetReducesArea(t *testing.T) {
 	}
 	paths := pathSet{makePath(0.8, 0.8, 1.0, map[string]float64{"A": 0.8, "FW": 0.8, "IDS": 0.8})}
 
-	_, slow := planRoadmap(paths, build(), 100_000, 3)
-	_, fast := planRoadmap(paths, build(), 300_000, 3)
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	_, slow := planRoadmap(paths, build(), 100_000, 3, now)
+	_, fast := planRoadmap(paths, build(), 300_000, 3, now)
 
 	slowArea := riskArea(monthlyW(paths, slow, 36))
 	fastArea := riskArea(monthlyW(paths, fast, 36))
@@ -121,7 +123,7 @@ func TestPlanRoadmap_SkipsCandidatesDeployingBeyondHorizon(t *testing.T) {
 	}
 
 	// Горизонт в один год: железо со сроком внедрения 3 месяца всё ещё успевает.
-	_, purchases := planRoadmap(paths, candidates, 10_000, 1)
+	_, purchases := planRoadmap(paths, candidates, 10_000, 1, time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
 	if len(purchases) != 1 {
 		t.Fatalf("средство должно было попасть в план, куплено %d", len(purchases))
 	}
@@ -131,3 +133,85 @@ func TestPlanRoadmap_SkipsCandidatesDeployingBeyondHorizon(t *testing.T) {
 }
 
 var _ = domain.PTSZIAttackPath{}
+
+// После истечения сертификата средство перестаёт защищать, и риск
+// возвращается к исходному уровню — это должно быть видно в помесячном ряду.
+func TestExpiry_RiskReturnsAfterCertificateEnds(t *testing.T) {
+	paths := pathSet{makePath(0.7, 0.7, 1.0, map[string]float64{"A": 0.9})}
+	baseline := paths.totalW(nil)
+
+	expires := 12
+	purchases := []Purchase{{
+		Candidate:       Candidate{ControlCode: "A", Effectiveness: 0.8},
+		ActiveFromMonth: 0,
+		ExpiresAtMonth:  &expires,
+	}}
+
+	series := monthlyW(paths, purchases, 24)
+
+	if series[6] >= baseline {
+		t.Fatalf("до истечения риск должен быть ниже базового: %.4f против %.4f", series[6], baseline)
+	}
+	if diff := series[12] - baseline; diff > 1e-9 || diff < -1e-9 {
+		t.Fatalf("после истечения риск должен вернуться к %.4f, получено %.4f", baseline, series[12])
+	}
+	t.Logf("W: месяц 6 = %.4f, месяц 12 (истёк) = %.4f", series[6], series[12])
+}
+
+// Средство с истекающим сертификатом хуже по площади, чем бессрочное:
+// планировщик обязан это различать.
+func TestExpiry_PerpetualBeatsExpiring(t *testing.T) {
+	paths := pathSet{makePath(0.7, 0.7, 1.0, map[string]float64{"A": 0.9})}
+	c := Candidate{ControlCode: "A", Effectiveness: 0.8}
+
+	ends := 18
+	perpetual := riskArea(monthlyW(paths, []Purchase{{Candidate: c, ActiveFromMonth: 1}}, 36))
+	expiring := riskArea(monthlyW(paths, []Purchase{{Candidate: c, ActiveFromMonth: 1, ExpiresAtMonth: &ends}}, 36))
+
+	if perpetual >= expiring {
+		t.Fatalf("бессрочный сертификат не выгоднее истекающего: %.4f против %.4f", perpetual, expiring)
+	}
+	t.Logf("площадь: бессрочный %.4f, истекает на 18-м месяце %.4f", perpetual, expiring)
+}
+
+func TestMonthsUntil(t *testing.T) {
+	now := time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC)
+
+	cases := []struct {
+		date string
+		want int
+	}{
+		{"2027-01-15", 12},
+		{"2026-07-15", 6},
+		{"2025-01-15", 0}, // уже истёк
+	}
+	for _, c := range cases {
+		d := c.date
+		got := monthsUntil(&d, now)
+		if got == nil || *got != c.want {
+			t.Errorf("monthsUntil(%s) = %v, ожидалось %d", c.date, got, c.want)
+		}
+	}
+	if got := monthsUntil(nil, now); got != nil {
+		t.Errorf("бессрочный сертификат должен давать nil, получено %v", got)
+	}
+}
+
+// Покупать средство, сертификат которого истекает раньше окончания
+// внедрения, бессмысленно: оно не отработает ни дня.
+func TestPlanRoadmap_SkipsCertificateExpiringBeforeDeploy(t *testing.T) {
+	paths := pathSet{makePath(0.9, 0.9, 1.0, map[string]float64{"A": 0.9})}
+	soon := "2026-02-01"
+	candidates := []Candidate{{
+		ControlCode:   "A",
+		CostMax:       1000,
+		Effectiveness: 0.9,
+		LicenseModel:  "appliance", // внедрение 3 месяца
+		ValidUntil:    &soon,       // а сертификат кончится через месяц
+	}}
+
+	_, purchases := planRoadmap(paths, candidates, 10_000, 1, time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+	if len(purchases) != 0 {
+		t.Fatalf("средство не должно было попасть в план, куплено %d", len(purchases))
+	}
+}

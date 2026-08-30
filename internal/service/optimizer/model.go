@@ -31,6 +31,11 @@ type Candidate struct {
 	SourceType   string  `json:"source_type"`
 	// Effectiveness — предполагаемая эффективность внедрения.
 	Effectiveness float64 `json:"effectiveness"`
+	// ValidUntil — дата окончания сертификата ФСТЭК (ISO) либо nil у бессрочных.
+	// В отличие от сроков внедрения это не экспертная оценка, а факт из реестра.
+	ValidUntil *string `json:"valid_until,omitempty"`
+	// ValidityKind — dated | perpetual | suspended | unknown.
+	ValidityKind string `json:"validity_kind,omitempty"`
 }
 
 // Step — один шаг плана внедрения.

@@ -1,6 +1,9 @@
 package optimizer
 
-import "sort"
+import (
+	"sort"
+	"time"
+)
 
 // Горизонт планирования ограничен сверху: дальше пяти лет прогноз держится
 // на допущениях, которые проверить нечем — сертификаты истекают, продукты
@@ -41,6 +44,33 @@ type Purchase struct {
 	ActiveFromMonth int     `json:"active_from_month"`
 	DeployMonths    int     `json:"deploy_months"`
 	Cost            float64 `json:"cost"`
+	// ExpiresAtMonth — месяц, с которого средство перестаёт считаться
+	// защищающим, потому что закончился сертификат ФСТЭК.
+	//
+	// Указатель, а не число: nil означает «сертификат бессрочный или его
+	// дата неизвестна». С обычным int нулевое значение читалось бы как
+	// «истёк в нулевом месяце», и забытое поле молча отключало бы средство
+	// на весь горизонт.
+	ExpiresAtMonth *int `json:"expires_at_month,omitempty"`
+}
+
+// monthsUntil переводит дату окончания сертификата в номер месяца горизонта.
+//
+// Планирование ведётся от текущего месяца, поэтому сертификат, истекающий
+// через год, перестаёт действовать на 12-м месяце плана.
+func monthsUntil(validUntil *string, from time.Time) *int {
+	if validUntil == nil || *validUntil == "" {
+		return nil
+	}
+	end, err := time.Parse("2006-01-02", *validUntil)
+	if err != nil {
+		return nil
+	}
+	months := int(end.Year()-from.Year())*12 + int(end.Month()) - int(from.Month())
+	if months < 0 {
+		months = 0
+	}
+	return &months
 }
 
 // Period — один год плана.
@@ -87,11 +117,17 @@ func monthlyW(paths pathSet, purchases []Purchase, months int) []float64 {
 	for m := 0; m < months; m++ {
 		added := map[string]float64{}
 		for _, p := range purchases {
-			if p.ActiveFromMonth <= m {
-				code := p.Candidate.ControlCode
-				if e, ok := added[code]; !ok || p.Candidate.Effectiveness > e {
-					added[code] = p.Candidate.Effectiveness
-				}
+			if p.ActiveFromMonth > m {
+				continue
+			}
+			// Сертификат кончился — средство больше не считается
+			// подтверждённым, и риск возвращается.
+			if p.ExpiresAtMonth != nil && m >= *p.ExpiresAtMonth {
+				continue
+			}
+			code := p.Candidate.ControlCode
+			if e, ok := added[code]; !ok || p.Candidate.Effectiveness > e {
+				added[code] = p.Candidate.Effectiveness
 			}
 		}
 		series[m] = paths.totalW(added)
@@ -115,7 +151,7 @@ func riskArea(series []float64) float64 {
 // купленное в первый год, экономит больше, чем купленное в последний, и
 // планировщик обязан это видеть. Поэтому кандидат оценивается по тому,
 // насколько уменьшится интеграл до конца горизонта, если купить его сейчас.
-func planRoadmap(paths pathSet, candidates []Candidate, budgetPerYear float64, years int) ([]Period, []Purchase) {
+func planRoadmap(paths pathSet, candidates []Candidate, budgetPerYear float64, years int, now time.Time) ([]Period, []Purchase) {
 	months := years * 12
 	purchases := make([]Purchase, 0, len(candidates))
 	used := map[int]bool{}
@@ -142,9 +178,15 @@ func planRoadmap(paths pathSet, candidates []Candidate, budgetPerYear float64, y
 					DeployMonths:    delay,
 					ActiveFromMonth: year*12 + delay,
 					Cost:            c.CostMax,
+					ExpiresAtMonth:  monthsUntil(c.ValidUntil, now),
 				}
 				if candidate.ActiveFromMonth >= months {
 					// Внедрится уже за горизонтом — в этом плане бесполезно.
+					continue
+				}
+				// Сертификат истекает раньше, чем средство успеет внедриться:
+				// покупать его бессмысленно, оно не отработает ни дня.
+				if candidate.ExpiresAtMonth != nil && *candidate.ExpiresAtMonth <= candidate.ActiveFromMonth {
 					continue
 				}
 

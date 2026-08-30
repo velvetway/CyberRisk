@@ -3,6 +3,8 @@ package optimizer
 import (
 	"context"
 	"fmt"
+	"strings"
+	"time"
 
 	"Diplom/internal/domain"
 	"Diplom/internal/repository"
@@ -137,7 +139,7 @@ func (s *service) Roadmap(
 	roadmap.Skipped = skipped
 	sortCandidates(candidates)
 
-	periods, purchases := planRoadmap(paths, candidates, budgetPerYear, years)
+	periods, purchases := planRoadmap(paths, candidates, budgetPerYear, years, time.Now())
 	roadmap.Periods = periods
 
 	for _, p := range periods {
@@ -157,7 +159,7 @@ func (s *service) Roadmap(
 	for _, p := range purchases {
 		steps = append(steps, Step{Candidate: p.Candidate})
 	}
-	roadmap.Warnings = warnings(steps)
+	roadmap.Warnings = append(warnings(steps), expiryWarnings(purchases, years*12)...)
 
 	return roadmap, nil
 }
@@ -229,6 +231,8 @@ func cheapest(certs []domain.SZICertificate, ctrl domain.PTSZIControl) (Candidat
 				SourceURL:       p.SourceURL,
 				SourceType:      p.SourceType,
 				Effectiveness:   defaultEffectiveness,
+				ValidUntil:      cert.ValidUntil,
+				ValidityKind:    cert.ValidityKind,
 			}
 			found = true
 		}
@@ -270,6 +274,39 @@ func warnings(steps []Step) []string {
 	}
 
 	return out
+}
+
+// expiryWarnings предупреждает о средствах, сертификат которых истекает
+// внутри горизонта планирования.
+//
+// Это не гипотеза, а дата из реестра: после неё средство перестаёт быть
+// подтверждённым, и защита, на которую рассчитывает план, юридически
+// заканчивается. Продление сертификата — отдельное событие, которого модель
+// не предсказывает, поэтому решение остаётся за человеком.
+func expiryWarnings(purchases []Purchase, horizonMonths int) []string {
+	expiring := make([]string, 0)
+	for _, p := range purchases {
+		if p.ExpiresAtMonth == nil || *p.ExpiresAtMonth >= horizonMonths {
+			continue
+		}
+		name := p.Candidate.ProductName
+		if name == "" {
+			name = p.Candidate.ControlCode
+		}
+		until := ""
+		if p.Candidate.ValidUntil != nil {
+			until = " (до " + *p.Candidate.ValidUntil + ")"
+		}
+		expiring = append(expiring, name+until)
+	}
+	if len(expiring) == 0 {
+		return nil
+	}
+	return []string{
+		"внутри горизонта истекает сертификат: " + strings.Join(expiring, "; ") +
+			" — после этой даты средство перестаёт быть подтверждённым, " +
+			"план учитывает возврат риска",
+	}
 }
 
 // missingControls — методы, которые встречаются в сценариях актива, но ни на
