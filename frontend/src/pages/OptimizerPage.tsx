@@ -404,6 +404,30 @@ export const OptimizerPage: React.FC = () => {
         </Card>
       )}
 
+      {plan && plan.compatibility && plan.compatibility.length > 0 && (
+        <Card
+          title="Совместимость мер"
+          subtitle="Меры влияют друг на друга: одни усиливают, другим нужна опора"
+          dense
+        >
+          <div style={{ display: "grid", gap: 10 }}>
+            {plan.compatibility.map((n, i) => (
+              <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                <Chip tone={n.kind === "synergy" ? "success" : "warn"} mono>
+                  {n.control} {n.kind === "synergy" ? "+" : "←"} {n.related}
+                </Chip>
+                <span className="mono" style={{ fontSize: "var(--text-xs)", color: "var(--fg-dim)", minWidth: 44 }}>
+                  ×{n.factor.toFixed(2)}
+                </span>
+                <span style={{ flex: 1, fontSize: "var(--text-sm)", color: "var(--fg-muted)" }}>
+                  {n.reason}
+                </span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
       {warnings.length > 0 && (
         <Card title="Оговорки к расчёту" dense>
           <ul style={{ margin: 0, paddingLeft: 18, display: "grid", gap: 6, fontSize: "var(--text-sm)", color: "var(--fg-muted)" }}>

@@ -83,6 +83,9 @@ type Plan struct {
 	ExhaustiveDelta float64 `json:"exhaustive_delta,omitempty"`
 	// Warnings — оговорки, без которых план легко прочитать неверно.
 	Warnings []string `json:"warnings,omitempty"`
+	// Compatibility — сработавшие правила совместимости: какие меры усилили
+	// друг друга, а какие остались без нужной опоры.
+	Compatibility []CompatibilityNote `json:"compatibility,omitempty"`
 }
 
 type SkippedCandidate struct {

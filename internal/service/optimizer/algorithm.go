@@ -58,12 +58,39 @@ func (p pathSet) totalW(added map[string]float64) float64 {
 	return totalW(p, added)
 }
 
+// activeControls — какие методы работают на активе: уже внедрённые плюс
+// добавляемые планом. Нужны, чтобы правила совместимости знали полную
+// картину, а не только новые закупки.
+func activeControls(paths pathSet, added map[string]float64) map[string]bool {
+	active := make(map[string]bool, len(added)+4)
+	for code := range added {
+		active[code] = true
+	}
+	for i := range paths {
+		for _, vl := range paths[i].VulnerableLinks {
+			for _, c := range vl.Controls {
+				if c.Implemented {
+					active[c.Control.Code] = true
+				}
+			}
+		}
+	}
+	return active
+}
+
 // totalW — суммарный вес всех применимых угроз актива при заданном наборе
 // дополнительно внедряемых мер.
 //
 // Суммой, а не средним: добавление меры не должно «размывать» эффект по числу
 // угроз, а общая подверженность актива складывается из всех сценариев.
 func totalW(paths []domain.PTSZIAttackPath, added map[string]float64) float64 {
+	// Эффективность новых мер зависит от того, что уже работает рядом:
+	// обнаружение вторжений без администрирования слабее, межсетевой экран
+	// вместе с сегментацией — сильнее.
+	if len(added) > 0 {
+		added = applyCompatibility(added, activeControls(paths, added))
+	}
+
 	sum := 0.0
 	for i := range paths {
 		sum += recalcW(&paths[i], added)

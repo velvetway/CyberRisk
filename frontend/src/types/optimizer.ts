@@ -48,6 +48,17 @@ export interface SkippedCandidate {
     reason: string;
 }
 
+/** Сработавшее правило совместимости методов защиты. */
+export interface CompatibilityNote {
+    /** dependency — мера осталась без нужной опоры; synergy — меры усилили друг друга. */
+    kind: "dependency" | "synergy";
+    control: string;
+    related: string;
+    /** Во сколько раз изменилась эффективность. */
+    factor: number;
+    reason: string;
+}
+
 export interface OptimizerPlan {
     asset_id: number;
     budget: number;
@@ -65,6 +76,7 @@ export interface OptimizerPlan {
     greedy_is_optimal: boolean;
     exhaustive_delta?: number;
     warnings?: string[];
+    compatibility?: CompatibilityNote[];
 }
 
 export interface RoadmapPurchase {

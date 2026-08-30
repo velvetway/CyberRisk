@@ -86,6 +86,17 @@ func (s *service) Optimize(ctx context.Context, assetID int64, budget float64, m
 	}
 
 	plan.Warnings = warnings(plan.Steps)
+
+	planned := make(map[string]float64, len(plan.Steps))
+	for _, st := range plan.Steps {
+		planned[st.Candidate.ControlCode] = st.Candidate.Effectiveness
+	}
+	plannedSet := make(map[string]bool, len(planned))
+	for code := range planned {
+		plannedSet[code] = true
+	}
+	plan.Compatibility = compatibilityNotes(plannedSet, activeControls(paths, planned))
+
 	return plan, nil
 }
 
