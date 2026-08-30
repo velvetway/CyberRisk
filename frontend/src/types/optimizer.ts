@@ -112,6 +112,12 @@ export interface Roadmap {
     baseline_area: number;
     risk_area: number;
     area_reduction: number;
+    /** Ставка приведения затрат; 0 — не применялась. */
+    discount_rate: number;
+    /** Приведённая стоимость плана. Совпадает с total_cost без дисконтирования. */
+    present_value: number;
+    /** Годовая скорость старения защиты; 0 — не учитывалась. */
+    degradation_rate: number;
     skipped?: SkippedCandidate[];
     warnings?: string[];
 }

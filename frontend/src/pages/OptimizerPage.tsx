@@ -75,6 +75,8 @@ export const OptimizerPage: React.FC = () => {
   const [budgetPerYear, setBudgetPerYear] = useState(300_000);
   const [years, setYears] = useState(3);
   const [maxClass, setMaxClass] = useState<number | "">("");
+  const [discountRate, setDiscountRate] = useState(0);
+  const [degradationRate, setDegradationRate] = useState(0);
   const [scale, setScale] = useState<AssetScale>({ workstations: 50, servers: 3, appliances: 1 });
 
   const [plan, setPlan] = useState<OptimizerPlan | null>(null);
@@ -107,7 +109,7 @@ export const OptimizerPage: React.FC = () => {
         setPlan(await api.optimizeAsset(assetId, budget, scale, cls));
         setRoadmap(null);
       } else {
-        setRoadmap(await api.getAssetRoadmap(assetId, budgetPerYear, years, scale, cls));
+        setRoadmap(await api.getAssetRoadmap(assetId, budgetPerYear, years, scale, cls, discountRate, degradationRate));
         setPlan(null);
       }
     } catch (e: any) {
@@ -183,6 +185,24 @@ export const OptimizerPage: React.FC = () => {
                 <input type="number" value={years} min={1} max={5}
                        onChange={e => setYears(Number(e.target.value))} style={{ padding: "6px 8px" }} />
               </label>
+              <label style={{ display: "grid", gap: 4 }}>
+                <span style={{ fontSize: "var(--text-xs)", color: "var(--fg-dim)" }}
+                      title="Рубль будущего года дешевле сегодняшнего">
+                  Приведение затрат, %/год
+                </span>
+                <input type="number" value={Math.round(discountRate * 100)} min={0} max={50} step={1}
+                       onChange={e => setDiscountRate(Number(e.target.value) / 100)}
+                       style={{ padding: "6px 8px" }} />
+              </label>
+              <label style={{ display: "grid", gap: 4 }}>
+                <span style={{ fontSize: "var(--text-xs)", color: "var(--fg-dim)" }}
+                      title="Сигнатуры отстают от новых образцов, правила — от новых техник обхода">
+                  Старение защиты, %/год
+                </span>
+                <input type="number" value={Math.round(degradationRate * 100)} min={0} max={50} step={1}
+                       onChange={e => setDegradationRate(Number(e.target.value) / 100)}
+                       style={{ padding: "6px 8px" }} />
+              </label>
             </>
           )}
 
@@ -239,7 +259,17 @@ export const OptimizerPage: React.FC = () => {
             tone="accent"
             mono
           />
-          <StatCard label="Затраты" value={money(plan?.total_cost ?? roadmap?.total_cost ?? 0)} tone="info" mono />
+          <StatCard
+            label="Затраты"
+            value={money(plan?.total_cost ?? roadmap?.total_cost ?? 0)}
+            sub={
+              roadmap && roadmap.discount_rate > 0
+                ? `приведённая ${money(roadmap.present_value)}`
+                : undefined
+            }
+            tone="info"
+            mono
+          />
         </div>
       )}
 

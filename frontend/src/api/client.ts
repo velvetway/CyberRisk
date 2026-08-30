@@ -264,6 +264,8 @@ export const api = {
         years: number,
         scale: AssetScale,
         maxClass?: number,
+        discountRate = 0,
+        degradationRate = 0,
     ): Promise<Roadmap> {
         const params = new URLSearchParams({
             budget_per_year: String(budgetPerYear),
@@ -273,6 +275,8 @@ export const api = {
             appliances: String(scale.appliances),
         });
         if (maxClass) params.set("max_class", String(maxClass));
+        if (discountRate > 0) params.set("discount_rate", String(discountRate));
+        if (degradationRate > 0) params.set("degradation_rate", String(degradationRate));
         return request<Roadmap>(`/api/ptszi/assets/${assetId}/roadmap?${params}`);
     },
 

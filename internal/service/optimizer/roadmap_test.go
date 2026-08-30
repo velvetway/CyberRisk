@@ -11,7 +11,7 @@ func TestRiskArea_NoPurchasesEqualsBaseline(t *testing.T) {
 	paths := pathSet{makePath(0.6, 0.6, 1.0, map[string]float64{"A": 0.8})}
 	baseline := paths.totalW(nil)
 
-	area := riskArea(monthlyW(paths, nil, 36))
+	area := riskArea(monthlyW(paths, nil, 36, 0))
 	want := baseline * 3
 
 	if diff := area - want; diff > 1e-6 || diff < -1e-6 {
@@ -25,8 +25,8 @@ func TestRiskArea_EarlierPurchaseIsBetter(t *testing.T) {
 	paths := pathSet{makePath(0.7, 0.7, 1.0, map[string]float64{"A": 0.9})}
 	c := Candidate{ControlCode: "A", CostMax: 100, Effectiveness: 0.8, LicenseModel: "per_node"}
 
-	early := riskArea(monthlyW(paths, []Purchase{{Candidate: c, ActiveFromMonth: 1}}, 36))
-	late := riskArea(monthlyW(paths, []Purchase{{Candidate: c, ActiveFromMonth: 24}}, 36))
+	early := riskArea(monthlyW(paths, []Purchase{{Candidate: c, ActiveFromMonth: 1}}, 36, 0))
+	late := riskArea(monthlyW(paths, []Purchase{{Candidate: c, ActiveFromMonth: 24}}, 36, 0))
 
 	if early >= late {
 		t.Fatalf("ранняя закупка не выгоднее поздней: рано %.4f, поздно %.4f", early, late)
@@ -40,8 +40,8 @@ func TestDeployDelay_AffectsArea(t *testing.T) {
 	paths := pathSet{makePath(0.7, 0.7, 1.0, map[string]float64{"A": 0.9})}
 	c := Candidate{ControlCode: "A", CostMax: 100, Effectiveness: 0.8}
 
-	software := riskArea(monthlyW(paths, []Purchase{{Candidate: c, ActiveFromMonth: deployDelay("per_node")}}, 36))
-	hardware := riskArea(monthlyW(paths, []Purchase{{Candidate: c, ActiveFromMonth: deployDelay("appliance")}}, 36))
+	software := riskArea(monthlyW(paths, []Purchase{{Candidate: c, ActiveFromMonth: deployDelay("per_node")}}, 36, 0))
+	hardware := riskArea(monthlyW(paths, []Purchase{{Candidate: c, ActiveFromMonth: deployDelay("appliance")}}, 36, 0))
 
 	if software >= hardware {
 		t.Fatalf("срок внедрения не влияет: софт %.4f, железо %.4f", software, hardware)
@@ -61,14 +61,20 @@ func TestPlanRoadmap_RespectsYearlyBudget(t *testing.T) {
 	sortCandidates(candidates)
 
 	budget := 100_000.0
-	periods, purchases := planRoadmap(paths, candidates, budget, 3, time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+	periods, purchases := planRoadmap(paths, candidates, budget, 3, time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), 0)
 
 	if len(periods) != 3 {
 		t.Fatalf("ожидалось 3 периода, получено %d", len(periods))
 	}
-	for _, p := range periods {
-		if p.Spent > budget+1e-9 {
-			t.Fatalf("год %d: годовой бюджет превышен (%.0f > %.0f)", p.Year, p.Spent, budget)
+	// С переносом остатка год может потратить больше годового лимита, но
+	// накопленный итог обязан укладываться в бюджет за прошедшие годы.
+	spent := 0.0
+	for i, p := range periods {
+		spent += p.Spent
+		limit := budget * float64(i+1)
+		if spent > limit+1e-9 {
+			t.Fatalf("к концу года %d потрачено %.0f при накопленном лимите %.0f",
+				p.Year, spent, limit)
 		}
 	}
 	if len(purchases) == 0 {
@@ -104,11 +110,11 @@ func TestPlanRoadmap_BiggerBudgetReducesArea(t *testing.T) {
 	paths := pathSet{makePath(0.8, 0.8, 1.0, map[string]float64{"A": 0.8, "FW": 0.8, "IDS": 0.8})}
 
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
-	_, slow := planRoadmap(paths, build(), 100_000, 3, now)
-	_, fast := planRoadmap(paths, build(), 300_000, 3, now)
+	_, slow := planRoadmap(paths, build(), 100_000, 3, now, 0)
+	_, fast := planRoadmap(paths, build(), 300_000, 3, now, 0)
 
-	slowArea := riskArea(monthlyW(paths, slow, 36))
-	fastArea := riskArea(monthlyW(paths, fast, 36))
+	slowArea := riskArea(monthlyW(paths, slow, 36, 0))
+	fastArea := riskArea(monthlyW(paths, fast, 36, 0))
 
 	if fastArea >= slowArea {
 		t.Fatalf("больший бюджет не сократил площадь: медленно %.4f, быстро %.4f", slowArea, fastArea)
@@ -123,7 +129,7 @@ func TestPlanRoadmap_SkipsCandidatesDeployingBeyondHorizon(t *testing.T) {
 	}
 
 	// Горизонт в один год: железо со сроком внедрения 3 месяца всё ещё успевает.
-	_, purchases := planRoadmap(paths, candidates, 10_000, 1, time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+	_, purchases := planRoadmap(paths, candidates, 10_000, 1, time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), 0)
 	if len(purchases) != 1 {
 		t.Fatalf("средство должно было попасть в план, куплено %d", len(purchases))
 	}
@@ -147,7 +153,7 @@ func TestExpiry_RiskReturnsAfterCertificateEnds(t *testing.T) {
 		ExpiresAtMonth:  &expires,
 	}}
 
-	series := monthlyW(paths, purchases, 24)
+	series := monthlyW(paths, purchases, 24, 0)
 
 	if series[6] >= baseline {
 		t.Fatalf("до истечения риск должен быть ниже базового: %.4f против %.4f", series[6], baseline)
@@ -165,8 +171,8 @@ func TestExpiry_PerpetualBeatsExpiring(t *testing.T) {
 	c := Candidate{ControlCode: "A", Effectiveness: 0.8}
 
 	ends := 18
-	perpetual := riskArea(monthlyW(paths, []Purchase{{Candidate: c, ActiveFromMonth: 1}}, 36))
-	expiring := riskArea(monthlyW(paths, []Purchase{{Candidate: c, ActiveFromMonth: 1, ExpiresAtMonth: &ends}}, 36))
+	perpetual := riskArea(monthlyW(paths, []Purchase{{Candidate: c, ActiveFromMonth: 1}}, 36, 0))
+	expiring := riskArea(monthlyW(paths, []Purchase{{Candidate: c, ActiveFromMonth: 1, ExpiresAtMonth: &ends}}, 36, 0))
 
 	if perpetual >= expiring {
 		t.Fatalf("бессрочный сертификат не выгоднее истекающего: %.4f против %.4f", perpetual, expiring)
@@ -211,8 +217,31 @@ func TestPlanRoadmap_SkipsCertificateExpiringBeforeDeploy(t *testing.T) {
 		ValidUntil:    &soon,       // а сертификат кончится через месяц
 	}}
 
-	_, purchases := planRoadmap(paths, candidates, 10_000, 1, time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+	_, purchases := planRoadmap(paths, candidates, 10_000, 1, time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), 0)
 	if len(purchases) != 0 {
 		t.Fatalf("средство не должно было попасть в план, куплено %d", len(purchases))
 	}
+}
+
+// Перенос остатка позволяет накопить на средство, которое не влезает
+// в один год. Без него дорогая закупка была бы недостижима навсегда.
+func TestPlanRoadmap_CarriesUnspentBudget(t *testing.T) {
+	paths := pathSet{makePath(0.8, 0.8, 1.0, map[string]float64{"FW": 0.9})}
+	candidates := []Candidate{
+		// Стоит полтора годовых бюджета: за один год не купить.
+		{ControlCode: "FW", CostMax: 150_000, TotalCost: 150_000, Effectiveness: 0.8, LicenseModel: "per_node"},
+	}
+
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	_, purchases := planRoadmap(paths, candidates, 100_000, 3, now, 0)
+
+	if len(purchases) != 1 {
+		t.Fatalf("накопив за два года, средство должно было купиться; куплено %d", len(purchases))
+	}
+	if purchases[0].ActiveFromMonth < 12 {
+		t.Fatalf("покупка не могла состояться в первый год: старт с %d-го месяца",
+			purchases[0].ActiveFromMonth)
+	}
+	t.Logf("средство за 150 000 ₽ куплено при бюджете 100 000 ₽/год, работает с %d-го месяца",
+		purchases[0].ActiveFromMonth+1)
 }

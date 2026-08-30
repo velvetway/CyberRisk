@@ -22,6 +22,21 @@ func NewOptimizerHandler(svc optimizer.Service) *OptimizerHandler {
 // это позволяет проигрывать сценарии «а если станций будет двести» без правки
 // данных. Незаданные значения дают по одной единице каждого вида — тогда
 // стоимость совпадает со списочной ценой, как было до появления масштаба.
+// queryRate читает долевой параметр запроса. Некорректное значение
+// трактуется как «не задано»: молчаливый ноль безопаснее, чем расчёт по
+// мусору, попавшему в строку запроса.
+func queryRate(c *fiber.Ctx, name string) float64 {
+	raw := c.Query(name)
+	if raw == "" {
+		return 0
+	}
+	v, err := strconv.ParseFloat(raw, 64)
+	if err != nil || v < 0 {
+		return 0
+	}
+	return v
+}
+
 func parseScale(c *fiber.Ctx) optimizer.AssetScale {
 	scale := optimizer.DefaultScale()
 	if v, err := strconv.Atoi(c.Query("workstations")); err == nil && v > 0 {
@@ -89,7 +104,12 @@ func (h *OptimizerHandler) optimize(c *fiber.Ctx) error {
 //	max_class       — класс защиты по ФСТЭК не хуже указанного;
 //	workstations,
 //	servers,
-//	appliances      — масштаб актива: на него умножается цена за единицу.
+//	appliances      — масштаб актива: на него умножается цена за единицу;
+//	discount_rate   — годовая ставка приведения затрат, например 0.1;
+//	degradation_rate — годовая скорость старения защиты, например 0.05.
+//
+// Последние две по умолчанию выключены: осмысленного значения «по умолчанию»
+// у них нет, а молча менять числа, которые оператор уже видел, нельзя.
 func (h *OptimizerHandler) roadmap(c *fiber.Ctx) error {
 	assetID, err := strconv.ParseInt(c.Params("assetID"), 10, 64)
 	if err != nil || assetID <= 0 {
@@ -120,7 +140,12 @@ func (h *OptimizerHandler) roadmap(c *fiber.Ctx) error {
 		maxClass = &x
 	}
 
-	plan, err := h.svc.Roadmap(c.Context(), assetID, budget, years, maxClass, parseScale(c))
+	opts := optimizer.RoadmapOptions{
+		DiscountRate:    queryRate(c, "discount_rate"),
+		DegradationRate: queryRate(c, "degradation_rate"),
+	}
+
+	plan, err := h.svc.Roadmap(c.Context(), assetID, budget, years, maxClass, parseScale(c), opts)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}

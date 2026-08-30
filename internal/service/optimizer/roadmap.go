@@ -107,13 +107,20 @@ type Roadmap struct {
 	RiskArea float64 `json:"risk_area"`
 	// AreaReduction — на сколько сокращена площадь. Именно эту величину
 	// максимизирует планировщик.
-	AreaReduction float64            `json:"area_reduction"`
-	Skipped       []SkippedCandidate `json:"skipped,omitempty"`
-	Warnings      []string           `json:"warnings,omitempty"`
+	AreaReduction float64 `json:"area_reduction"`
+	// DiscountRate — ставка приведения затрат, 0 если не применялась.
+	DiscountRate float64 `json:"discount_rate"`
+	// PresentValue — приведённая стоимость плана. Совпадает с TotalCost,
+	// когда дисконтирование выключено.
+	PresentValue float64 `json:"present_value"`
+	// DegradationRate — годовая скорость старения защиты, 0 если не учтена.
+	DegradationRate float64            `json:"degradation_rate"`
+	Skipped         []SkippedCandidate `json:"skipped,omitempty"`
+	Warnings        []string           `json:"warnings,omitempty"`
 }
 
 // monthlyW — помесячный ряд суммарного веса угроз при заданных закупках.
-func monthlyW(paths pathSet, purchases []Purchase, months int) []float64 {
+func monthlyW(paths pathSet, purchases []Purchase, months int, degradation float64) []float64 {
 	series := make([]float64, months)
 	for m := 0; m < months; m++ {
 		added := map[string]float64{}
@@ -126,9 +133,11 @@ func monthlyW(paths pathSet, purchases []Purchase, months int) []float64 {
 			if p.ExpiresAtMonth != nil && m >= *p.ExpiresAtMonth {
 				continue
 			}
+			// Защита стареет с момента, когда начала работать.
+			eff := degradedEffectiveness(p.Candidate.Effectiveness, degradation, m-p.ActiveFromMonth)
 			code := p.Candidate.ControlCode
-			if e, ok := added[code]; !ok || p.Candidate.Effectiveness > e {
-				added[code] = p.Candidate.Effectiveness
+			if e, ok := added[code]; !ok || eff > e {
+				added[code] = eff
 			}
 		}
 		series[m] = paths.totalW(added)
@@ -152,18 +161,26 @@ func riskArea(series []float64) float64 {
 // купленное в первый год, экономит больше, чем купленное в последний, и
 // планировщик обязан это видеть. Поэтому кандидат оценивается по тому,
 // насколько уменьшится интеграл до конца горизонта, если купить его сейчас.
-func planRoadmap(paths pathSet, candidates []Candidate, budgetPerYear float64, years int, now time.Time) ([]Period, []Purchase) {
+func planRoadmap(paths pathSet, candidates []Candidate, budgetPerYear float64, years int, now time.Time, degradation float64) ([]Period, []Purchase) {
 	months := years * 12
 	purchases := make([]Purchase, 0, len(candidates))
 	used := map[int]bool{}
 	periods := make([]Period, 0, years)
 
+	// Неизрасходованный остаток переходит на следующий год.
+	//
+	// Без переноса дорогое средство при умеренном годовом бюджете
+	// недостижимо навсегда: оно не влезает ни в один год по отдельности,
+	// хотя за два года деньги нашлись бы. Организации так и поступают —
+	// копят на крупную закупку.
+	carried := 0.0
+
 	for year := 0; year < years; year++ {
 		period := Period{Year: year + 1, Purchases: []Purchase{}}
-		remaining := budgetPerYear
+		remaining := budgetPerYear + carried
 
 		for {
-			currentArea := riskArea(monthlyW(paths, purchases, months))
+			currentArea := riskArea(monthlyW(paths, purchases, months, degradation))
 
 			bestIdx := -1
 			bestGain := 0.0
@@ -192,7 +209,7 @@ func planRoadmap(paths pathSet, candidates []Candidate, budgetPerYear float64, y
 				}
 
 				trial := append(append([]Purchase{}, purchases...), candidate)
-				gain := currentArea - riskArea(monthlyW(paths, trial, months))
+				gain := currentArea - riskArea(monthlyW(paths, trial, months, degradation))
 				if gain <= 1e-9 {
 					continue
 				}
@@ -214,11 +231,12 @@ func planRoadmap(paths pathSet, candidates []Candidate, budgetPerYear float64, y
 			remaining -= bestPurchase.Cost
 		}
 
+		carried = remaining
 		periods = append(periods, period)
 	}
 
 	// Заполняем помесячную динамику по годам уже готовым набором закупок.
-	series := monthlyW(paths, purchases, months)
+	series := monthlyW(paths, purchases, months, degradation)
 	for i := range periods {
 		start := i * 12
 		end := start + 12

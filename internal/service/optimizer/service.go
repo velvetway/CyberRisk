@@ -22,7 +22,7 @@ const defaultEffectiveness = 0.8
 
 type Service interface {
 	Optimize(ctx context.Context, assetID int64, budget float64, maxClass *int16, scale AssetScale) (*Plan, error)
-	Roadmap(ctx context.Context, assetID int64, budgetPerYear float64, years int, maxClass *int16, scale AssetScale) (*Roadmap, error)
+	Roadmap(ctx context.Context, assetID int64, budgetPerYear float64, years int, maxClass *int16, scale AssetScale, opts RoadmapOptions) (*Roadmap, error)
 	Sensitivity(ctx context.Context, assetID int64, budget float64, maxClass *int16, scale AssetScale, runs int, variation float64) (*SensitivityReport, error)
 }
 
@@ -112,6 +112,7 @@ func (s *service) Roadmap(
 	years int,
 	maxClass *int16,
 	scale AssetScale,
+	opts RoadmapOptions,
 ) (*Roadmap, error) {
 	if budgetPerYear <= 0 {
 		return nil, fmt.Errorf("budget per year must be positive")
@@ -132,15 +133,20 @@ func (s *service) Roadmap(
 	}
 
 	baseline := totalW(paths, nil)
+	discount := normalizeRate(opts.DiscountRate, maxDiscountRate)
+	degradation := normalizeRate(opts.DegradationRate, maxDegradationRate)
+
 	roadmap := &Roadmap{
-		AssetID:       assetID,
-		HorizonYears:  years,
-		BudgetPerYear: budgetPerYear,
-		BaselineW:     baseline,
-		FinalW:        baseline,
-		BaselineArea:  baseline * float64(years),
-		RiskArea:      baseline * float64(years),
-		Periods:       []Period{},
+		AssetID:         assetID,
+		DiscountRate:    discount,
+		DegradationRate: degradation,
+		HorizonYears:    years,
+		BudgetPerYear:   budgetPerYear,
+		BaselineW:       baseline,
+		FinalW:          baseline,
+		BaselineArea:    baseline * float64(years),
+		RiskArea:        baseline * float64(years),
+		Periods:         []Period{},
 	}
 	if len(paths) == 0 {
 		return roadmap, nil
@@ -154,16 +160,17 @@ func (s *service) Roadmap(
 	roadmap.Skipped = skipped
 	sortCandidates(candidates)
 
-	periods, purchases := planRoadmap(paths, candidates, budgetPerYear, years, time.Now())
+	periods, purchases := planRoadmap(paths, candidates, budgetPerYear, years, time.Now(), degradation)
 	roadmap.Periods = periods
 
 	for _, p := range periods {
 		roadmap.TotalCost += p.Spent
 	}
+	roadmap.PresentValue = presentValue(periods, discount)
 
 	// Площадь считаем по помесячному ряду целиком, а не сложением по годам:
 	// так не накапливается ошибка округления.
-	series := monthlyW(paths, purchases, years*12)
+	series := monthlyW(paths, purchases, years*12, degradation)
 	roadmap.RiskArea = riskArea(series)
 	roadmap.AreaReduction = roadmap.BaselineArea - roadmap.RiskArea
 	if len(series) > 0 {
