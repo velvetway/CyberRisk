@@ -38,6 +38,14 @@ type Candidate struct {
 	SourceType string  `json:"source_type"`
 	// Effectiveness — предполагаемая эффективность внедрения.
 	Effectiveness float64 `json:"effectiveness"`
+	// CoveredControls — все методы, которые закрывает это средство.
+	//
+	// Одна позиция реестра часто сертифицирована по нескольким профилям:
+	// Dionis DPS проходит и как межсетевой экран, и как демилитаризованная
+	// зона, и как обнаружение вторжений. Засчитывать только тот метод, под
+	// который средство куплено, значит занижать эффект покупки и предлагать
+	// докупать то, что уже закрыто.
+	CoveredControls []string `json:"covered_controls,omitempty"`
 	// ValidUntil — дата окончания сертификата ФСТЭК (ISO) либо nil у бессрочных.
 	// В отличие от сроков внедрения это не экспертная оценка, а факт из реестра.
 	ValidUntil *string `json:"valid_until,omitempty"`

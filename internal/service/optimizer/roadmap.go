@@ -135,10 +135,9 @@ func monthlyW(paths pathSet, purchases []Purchase, months int, degradation float
 			}
 			// Защита стареет с момента, когда начала работать.
 			eff := degradedEffectiveness(p.Candidate.Effectiveness, degradation, m-p.ActiveFromMonth)
-			code := p.Candidate.ControlCode
-			if e, ok := added[code]; !ok || eff > e {
-				added[code] = eff
-			}
+			aged := p.Candidate
+			aged.Effectiveness = eff
+			applyCandidate(added, aged)
 		}
 		series[m] = paths.totalW(added)
 	}

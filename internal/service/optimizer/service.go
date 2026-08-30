@@ -309,6 +309,7 @@ func cheapest(certs []domain.SZICertificate, ctrl domain.PTSZIControl, scale Ass
 				SourceURL:       p.SourceURL,
 				SourceType:      p.SourceType,
 				Effectiveness:   defaultEffectiveness,
+				CoveredControls: cert.Controls,
 				ValidUntil:      cert.ValidUntil,
 				ValidityKind:    cert.ValidityKind,
 			}

@@ -50,6 +50,24 @@ func recalcW(path *domain.PTSZIAttackPath, added map[string]float64) float64 {
 	return ptszi.CalculateW(path.QThreat, path.QSeverity, qReaction, path.Z)
 }
 
+// applyCandidate отмечает как внедрённые все методы, которые закрывает
+// средство, а не только тот, под который оно выбрано.
+//
+// Иначе покупка недооценивается: Dionis DPS, взятый ради демилитаризованной
+// зоны, попутно закрывает межсетевой экран и обнаружение вторжений, и не
+// учитывать это — значит предлагать докупать уже закрытое.
+func applyCandidate(added map[string]float64, c Candidate) {
+	codes := c.CoveredControls
+	if len(codes) == 0 {
+		codes = []string{c.ControlCode}
+	}
+	for _, code := range codes {
+		if e, ok := added[code]; !ok || c.Effectiveness > e {
+			added[code] = c.Effectiveness
+		}
+	}
+}
+
 // pathSet — набор сценариев актива. Отдельный тип нужен планировщику
 // дорожной карты: он считает W многократно, для каждого месяца горизонта.
 type pathSet []domain.PTSZIAttackPath
@@ -127,9 +145,12 @@ func greedy(paths []domain.PTSZIAttackPath, candidates []Candidate, budget float
 				continue
 			}
 
-			added[c.ControlCode] = c.Effectiveness
-			w := totalW(paths, added)
-			delete(added, c.ControlCode)
+			trial := make(map[string]float64, len(added)+len(c.CoveredControls)+1)
+			for k, v := range added {
+				trial[k] = v
+			}
+			applyCandidate(trial, c)
+			w := totalW(paths, trial)
 
 			delta := current - w
 			if delta <= 1e-9 {
@@ -148,7 +169,7 @@ func greedy(paths []domain.PTSZIAttackPath, candidates []Candidate, budget float
 
 		c := candidates[bestIdx]
 		used[bestIdx] = true
-		added[c.ControlCode] = c.Effectiveness
+		applyCandidate(added, c)
 		spent += c.TotalCost
 
 		steps = append(steps, Step{
@@ -191,11 +212,9 @@ func exhaustive(paths []domain.PTSZIAttackPath, candidates []Candidate, budget f
 			if cost > budget {
 				break
 			}
-			// Один метод могут закрывать несколько средств: засчитываем лучшее,
-			// иначе комбинация выглядела бы сильнее, чем есть.
-			if e, ok := added[candidates[i].ControlCode]; !ok || candidates[i].Effectiveness > e {
-				added[candidates[i].ControlCode] = candidates[i].Effectiveness
-			}
+			// Средство закрывает все свои методы; если один метод закрывают
+			// несколько средств, засчитывается лучшее из них.
+			applyCandidate(added, candidates[i])
 		}
 		if cost > budget {
 			continue

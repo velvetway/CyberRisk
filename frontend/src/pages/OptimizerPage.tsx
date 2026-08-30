@@ -310,7 +310,17 @@ export const OptimizerPage: React.FC = () => {
               <tbody>
                 {plan.steps.map((s, i) => (
                   <tr key={i} style={{ borderTop: "1px solid var(--border)" }}>
-                    <td style={{ padding: "8px" }}><Chip tone="accent" mono>{s.candidate.control_code}</Chip></td>
+                    <td style={{ padding: "8px" }}>
+                      <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                        <Chip tone="accent" mono>{s.candidate.control_code}</Chip>
+                        {/* Средство нередко закрывает несколько методов сразу —
+                            показываем попутные, чтобы не выглядело, будто за
+                            эти деньги куплен всего один. */}
+                        {(s.candidate.covered_controls ?? [])
+                          .filter(c => c !== s.candidate.control_code)
+                          .map(c => <Chip key={c} tone="ghost" mono>+{c}</Chip>)}
+                      </div>
+                    </td>
                     <td style={{ padding: "8px" }}>
                       <div>{s.candidate.product_name}</div>
                       <div style={{ fontSize: "var(--text-xs)", color: "var(--fg-dim)" }}>

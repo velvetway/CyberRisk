@@ -28,6 +28,9 @@ export interface OptimizerCandidate {
     source_url?: string;
     source_type: string;
     effectiveness: number;
+    /** Все методы, которые закрывает средство: одна позиция реестра часто
+     *  сертифицирована по нескольким профилям защиты. */
+    covered_controls?: string[];
     /** Дата окончания сертификата ФСТЭК; отсутствует у бессрочных. */
     valid_until?: string;
     validity_kind?: string;

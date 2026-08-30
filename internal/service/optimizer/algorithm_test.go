@@ -146,3 +146,59 @@ func TestExhaustive_RejectsOverBudget(t *testing.T) {
 		t.Fatalf("при недостаточном бюджете ожидалось нулевое снижение, получено %.6f", best)
 	}
 }
+
+// Средство, сертифицированное по нескольким профилям, закрывает их все.
+// Без этого покупка недооценивается, а уже закрытые методы предлагаются
+// к докупке — ровно то, что было заметно на Dionis DPS.
+func TestApplyCandidate_CoversAllCertifiedMethods(t *testing.T) {
+	added := map[string]float64{}
+	applyCandidate(added, Candidate{
+		ControlCode:     "DZ",
+		Effectiveness:   0.8,
+		CoveredControls: []string{"DZ", "FW", "IDS"},
+	})
+
+	for _, code := range []string{"DZ", "FW", "IDS"} {
+		if added[code] != 0.8 {
+			t.Fatalf("метод %s должен быть закрыт, получено %v", code, added[code])
+		}
+	}
+}
+
+// Если список профилей пуст, засчитывается хотя бы тот метод, под который
+// средство выбрано: молча не закрыть ничего было бы хуже.
+func TestApplyCandidate_FallsBackToOwnControl(t *testing.T) {
+	added := map[string]float64{}
+	applyCandidate(added, Candidate{ControlCode: "A", Effectiveness: 0.7})
+
+	if added["A"] != 0.7 {
+		t.Fatalf("основной метод должен быть закрыт, получено %v", added["A"])
+	}
+}
+
+// Многопрофильное средство снижает риск сильнее однопрофильного той же цены.
+func TestGreedy_PrefersMultiMethodTool(t *testing.T) {
+	paths := pathSet{makePath(0.8, 0.8, 1.0, map[string]float64{"DZ": 0.8, "FW": 0.8, "IDS": 0.8})}
+
+	multi := []Candidate{{
+		ControlCode: "DZ", CostMax: 100_000, TotalCost: 100_000, Effectiveness: 0.8,
+		CoveredControls: []string{"DZ", "FW", "IDS"},
+	}}
+	single := []Candidate{{
+		ControlCode: "DZ", CostMax: 100_000, TotalCost: 100_000, Effectiveness: 0.8,
+		CoveredControls: []string{"DZ"},
+	}}
+
+	baseline := paths.totalW(nil)
+	multiSteps, _ := greedy(paths, multi, 150_000)
+	singleSteps, _ := greedy(paths, single, 150_000)
+
+	multiDelta := baseline - multiSteps[len(multiSteps)-1].WAfter
+	singleDelta := baseline - singleSteps[len(singleSteps)-1].WAfter
+
+	if multiDelta <= singleDelta {
+		t.Fatalf("средство на три профиля должно давать больше: %.4f против %.4f",
+			multiDelta, singleDelta)
+	}
+	t.Logf("за те же 100 000 ₽: три профиля −%.4f, один профиль −%.4f", multiDelta, singleDelta)
+}
