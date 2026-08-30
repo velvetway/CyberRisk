@@ -53,10 +53,10 @@ func TestPlanRoadmap_RespectsYearlyBudget(t *testing.T) {
 		makePath(0.8, 0.7, 1.0, map[string]float64{"A": 0.9, "FW": 0.8, "IDS": 0.7, "L": 0.6}),
 	}
 	candidates := []Candidate{
-		{ControlCode: "A", CostMax: 80_000, Effectiveness: 0.8, LicenseModel: "per_node"},
-		{ControlCode: "FW", CostMax: 90_000, Effectiveness: 0.8, LicenseModel: "appliance"},
-		{ControlCode: "IDS", CostMax: 95_000, Effectiveness: 0.8, LicenseModel: "per_server"},
-		{ControlCode: "L", CostMax: 85_000, Effectiveness: 0.8, LicenseModel: "per_node"},
+		{ControlCode: "A", CostMax: 80_000, TotalCost: 80_000, Effectiveness: 0.8, LicenseModel: "per_node"},
+		{ControlCode: "FW", CostMax: 90_000, TotalCost: 90_000, Effectiveness: 0.8, LicenseModel: "appliance"},
+		{ControlCode: "IDS", CostMax: 95_000, TotalCost: 95_000, Effectiveness: 0.8, LicenseModel: "per_server"},
+		{ControlCode: "L", CostMax: 85_000, TotalCost: 85_000, Effectiveness: 0.8, LicenseModel: "per_node"},
 	}
 	sortCandidates(candidates)
 
@@ -94,9 +94,9 @@ func TestPlanRoadmap_RespectsYearlyBudget(t *testing.T) {
 func TestPlanRoadmap_BiggerBudgetReducesArea(t *testing.T) {
 	build := func() []Candidate {
 		c := []Candidate{
-			{ControlCode: "A", CostMax: 100_000, Effectiveness: 0.8, LicenseModel: "per_node"},
-			{ControlCode: "FW", CostMax: 100_000, Effectiveness: 0.8, LicenseModel: "per_node"},
-			{ControlCode: "IDS", CostMax: 100_000, Effectiveness: 0.8, LicenseModel: "per_node"},
+			{ControlCode: "A", CostMax: 100_000, TotalCost: 100_000, Effectiveness: 0.8, LicenseModel: "per_node"},
+			{ControlCode: "FW", CostMax: 100_000, TotalCost: 100_000, Effectiveness: 0.8, LicenseModel: "per_node"},
+			{ControlCode: "IDS", CostMax: 100_000, TotalCost: 100_000, Effectiveness: 0.8, LicenseModel: "per_node"},
 		}
 		sortCandidates(c)
 		return c
@@ -119,7 +119,7 @@ func TestPlanRoadmap_BiggerBudgetReducesArea(t *testing.T) {
 func TestPlanRoadmap_SkipsCandidatesDeployingBeyondHorizon(t *testing.T) {
 	paths := pathSet{makePath(0.9, 0.9, 1.0, map[string]float64{"A": 0.9})}
 	candidates := []Candidate{
-		{ControlCode: "A", CostMax: 1000, Effectiveness: 0.9, LicenseModel: "appliance"},
+		{ControlCode: "A", CostMax: 1000, TotalCost: 1000, Effectiveness: 0.9, LicenseModel: "appliance"},
 	}
 
 	// Горизонт в один год: железо со сроком внедрения 3 месяца всё ещё успевает.
@@ -205,6 +205,7 @@ func TestPlanRoadmap_SkipsCertificateExpiringBeforeDeploy(t *testing.T) {
 	candidates := []Candidate{{
 		ControlCode:   "A",
 		CostMax:       1000,
+		TotalCost:     1000,
 		Effectiveness: 0.9,
 		LicenseModel:  "appliance", // внедрение 3 месяца
 		ValidUntil:    &soon,       // а сертификат кончится через месяц

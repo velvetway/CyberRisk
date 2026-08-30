@@ -93,13 +93,14 @@ type Period struct {
 // одному остаточному риску, но тот, что снижает его раньше, оставляет
 // систему под ударом меньшее время — и это должно быть видно в метрике.
 type Roadmap struct {
-	AssetID       int64    `json:"asset_id"`
-	HorizonYears  int      `json:"horizon_years"`
-	BudgetPerYear float64  `json:"budget_per_year"`
-	Periods       []Period `json:"periods"`
-	BaselineW     float64  `json:"baseline_w"`
-	FinalW        float64  `json:"final_w"`
-	TotalCost     float64  `json:"total_cost"`
+	AssetID       int64      `json:"asset_id"`
+	HorizonYears  int        `json:"horizon_years"`
+	BudgetPerYear float64    `json:"budget_per_year"`
+	Scale         AssetScale `json:"scale"`
+	Periods       []Period   `json:"periods"`
+	BaselineW     float64    `json:"baseline_w"`
+	FinalW        float64    `json:"final_w"`
+	TotalCost     float64    `json:"total_cost"`
 	// BaselineArea — площадь, если не делать ничего: W₀ × горизонт.
 	BaselineArea float64 `json:"baseline_area"`
 	// RiskArea — площадь под кривой при этом плане.
@@ -169,7 +170,7 @@ func planRoadmap(paths pathSet, candidates []Candidate, budgetPerYear float64, y
 			var bestPurchase Purchase
 
 			for i, c := range candidates {
-				if used[i] || c.CostMax > remaining {
+				if used[i] || c.TotalCost > remaining {
 					continue
 				}
 				delay := deployDelay(c.LicenseModel)
@@ -177,7 +178,7 @@ func planRoadmap(paths pathSet, candidates []Candidate, budgetPerYear float64, y
 					Candidate:       c,
 					DeployMonths:    delay,
 					ActiveFromMonth: year*12 + delay,
-					Cost:            c.CostMax,
+					Cost:            c.TotalCost,
 					ExpiresAtMonth:  monthsUntil(c.ValidUntil, now),
 				}
 				if candidate.ActiveFromMonth >= months {
@@ -196,7 +197,7 @@ func planRoadmap(paths pathSet, candidates []Candidate, budgetPerYear float64, y
 					continue
 				}
 				// Сокращение площади на миллион рублей.
-				efficiency := gain / (c.CostMax / 1_000_000)
+				efficiency := gain / (c.TotalCost / 1_000_000)
 				if efficiency > bestGain {
 					bestIdx, bestGain, bestPurchase = i, efficiency, candidate
 				}

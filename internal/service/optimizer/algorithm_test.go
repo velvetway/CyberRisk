@@ -81,9 +81,9 @@ func TestGreedy_RespectsBudget(t *testing.T) {
 		makePath(0.7, 0.7, 1.0, map[string]float64{"A": 0.8, "FW": 0.8, "IDS": 0.8}),
 	}
 	candidates := []Candidate{
-		{ControlCode: "A", CostMax: 100_000, Effectiveness: 0.8},
-		{ControlCode: "FW", CostMax: 400_000, Effectiveness: 0.8},
-		{ControlCode: "IDS", CostMax: 900_000, Effectiveness: 0.8},
+		{ControlCode: "A", CostMax: 100_000, TotalCost: 100_000, Effectiveness: 0.8},
+		{ControlCode: "FW", CostMax: 400_000, TotalCost: 400_000, Effectiveness: 0.8},
+		{ControlCode: "IDS", CostMax: 900_000, TotalCost: 900_000, Effectiveness: 0.8},
 	}
 
 	steps, spent := greedy(paths, candidates, 500_000)
@@ -109,10 +109,10 @@ func TestGreedy_NeverBeatsExhaustive(t *testing.T) {
 		makePath(0.4, 0.9, 0.5, map[string]float64{"FW": 0.8, "L": 0.6}),
 	}
 	candidates := []Candidate{
-		{ControlCode: "A", CostMax: 120_000, Effectiveness: 0.8},
-		{ControlCode: "FW", CostMax: 300_000, Effectiveness: 0.8},
-		{ControlCode: "IDS", CostMax: 250_000, Effectiveness: 0.8},
-		{ControlCode: "L", CostMax: 180_000, Effectiveness: 0.8},
+		{ControlCode: "A", CostMax: 120_000, TotalCost: 120_000, Effectiveness: 0.8},
+		{ControlCode: "FW", CostMax: 300_000, TotalCost: 300_000, Effectiveness: 0.8},
+		{ControlCode: "IDS", CostMax: 250_000, TotalCost: 250_000, Effectiveness: 0.8},
+		{ControlCode: "L", CostMax: 180_000, TotalCost: 180_000, Effectiveness: 0.8},
 	}
 	sortCandidates(candidates)
 
@@ -140,7 +140,7 @@ func TestExhaustive_RejectsOverBudget(t *testing.T) {
 	paths := []domain.PTSZIAttackPath{
 		makePath(0.9, 0.9, 1.0, map[string]float64{"A": 0.9}),
 	}
-	candidates := []Candidate{{ControlCode: "A", CostMax: 1_000_000, Effectiveness: 0.9}}
+	candidates := []Candidate{{ControlCode: "A", CostMax: 1_000_000, TotalCost: 1_000_000, Effectiveness: 0.9}}
 
 	if best, ok := exhaustive(paths, candidates, 10_000); !ok || best != 0 {
 		t.Fatalf("при недостаточном бюджете ожидалось нулевое снижение, получено %.6f", best)

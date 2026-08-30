@@ -22,13 +22,20 @@ type Candidate struct {
 	ProductName     string  `json:"product_name"`
 	Vendor          *string `json:"vendor,omitempty"`
 	ProtectionClass *int16  `json:"protection_class,omitempty"`
-	// CostMin/CostMax — диапазон, потому что цены собраны диапазоном.
-	// Планирование ведём по верхней границе: бюджет должен сойтись в худшем случае.
+	// CostMin/CostMax — цена за одну единицу лицензирования, диапазоном,
+	// потому что и в источниках она диапазоном. Планирование ведётся по
+	// верхней границе: бюджет должен сойтись и в худшем случае.
 	CostMin      float64 `json:"cost_min"`
 	CostMax      float64 `json:"cost_max"`
 	LicenseModel string  `json:"license_model"`
-	SourceURL    *string `json:"source_url,omitempty"`
-	SourceType   string  `json:"source_type"`
+	// PricingUnit — за что берётся цена: node | server | appliance | bundle.
+	PricingUnit string `json:"pricing_unit"`
+	// Units — сколько таких единиц нужно при масштабе актива.
+	Units int `json:"units"`
+	// TotalCost — CostMax × Units: во столько обойдётся закрытие метода.
+	TotalCost  float64 `json:"total_cost"`
+	SourceURL  *string `json:"source_url,omitempty"`
+	SourceType string  `json:"source_type"`
 	// Effectiveness — предполагаемая эффективность внедрения.
 	Effectiveness float64 `json:"effectiveness"`
 	// ValidUntil — дата окончания сертификата ФСТЭК (ISO) либо nil у бессрочных.
@@ -55,6 +62,8 @@ type Step struct {
 type Plan struct {
 	AssetID int64   `json:"asset_id"`
 	Budget  float64 `json:"budget"`
+	// Scale — масштаб актива, по которому считалась стоимость.
+	Scale AssetScale `json:"scale"`
 	// BaselineW — суммарный W по применимым угрозам до внедрения.
 	BaselineW  float64 `json:"baseline_w"`
 	ResultingW float64 `json:"resulting_w"`

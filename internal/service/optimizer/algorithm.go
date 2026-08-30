@@ -95,7 +95,7 @@ func greedy(paths []domain.PTSZIAttackPath, candidates []Candidate, budget float
 			if used[i] {
 				continue
 			}
-			cost := c.CostMax
+			cost := c.TotalCost
 			if spent+cost > budget {
 				continue
 			}
@@ -122,7 +122,7 @@ func greedy(paths []domain.PTSZIAttackPath, candidates []Candidate, budget float
 		c := candidates[bestIdx]
 		used[bestIdx] = true
 		added[c.ControlCode] = c.Effectiveness
-		spent += c.CostMax
+		spent += c.TotalCost
 
 		steps = append(steps, Step{
 			Candidate:      c,
@@ -160,7 +160,7 @@ func exhaustive(paths []domain.PTSZIAttackPath, candidates []Candidate, budget f
 			if mask&(1<<i) == 0 {
 				continue
 			}
-			cost += candidates[i].CostMax
+			cost += candidates[i].TotalCost
 			if cost > budget {
 				break
 			}
@@ -186,8 +186,8 @@ func exhaustive(paths []domain.PTSZIAttackPath, candidates []Candidate, budget f
 // значениях целевой функции.
 func sortCandidates(candidates []Candidate) {
 	sort.Slice(candidates, func(i, j int) bool {
-		if candidates[i].CostMax != candidates[j].CostMax {
-			return candidates[i].CostMax < candidates[j].CostMax
+		if candidates[i].TotalCost != candidates[j].TotalCost {
+			return candidates[i].TotalCost < candidates[j].TotalCost
 		}
 		return candidates[i].ControlCode < candidates[j].ControlCode
 	})

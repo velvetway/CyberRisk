@@ -21,8 +21,8 @@ import (
 const defaultEffectiveness = 0.8
 
 type Service interface {
-	Optimize(ctx context.Context, assetID int64, budget float64, maxClass *int16) (*Plan, error)
-	Roadmap(ctx context.Context, assetID int64, budgetPerYear float64, years int, maxClass *int16) (*Roadmap, error)
+	Optimize(ctx context.Context, assetID int64, budget float64, maxClass *int16, scale AssetScale) (*Plan, error)
+	Roadmap(ctx context.Context, assetID int64, budgetPerYear float64, years int, maxClass *int16, scale AssetScale) (*Roadmap, error)
 }
 
 type service struct {
@@ -34,7 +34,7 @@ func NewService(p ptszi.Service, szi repository.SZIRepository) Service {
 	return &service{ptszi: p, szi: szi}
 }
 
-func (s *service) Optimize(ctx context.Context, assetID int64, budget float64, maxClass *int16) (*Plan, error) {
+func (s *service) Optimize(ctx context.Context, assetID int64, budget float64, maxClass *int16, scale AssetScale) (*Plan, error) {
 	if budget <= 0 {
 		return nil, fmt.Errorf("budget must be positive")
 	}
@@ -59,10 +59,11 @@ func (s *service) Optimize(ctx context.Context, assetID int64, budget float64, m
 		return plan, nil
 	}
 
-	candidates, skipped, err := s.buildCandidates(ctx, paths, maxClass)
+	candidates, skipped, err := s.buildCandidates(ctx, paths, maxClass, scale)
 	if err != nil {
 		return nil, err
 	}
+	plan.Scale = scale.normalized()
 	plan.Skipped = skipped
 	sortCandidates(candidates)
 
@@ -98,6 +99,7 @@ func (s *service) Roadmap(
 	budgetPerYear float64,
 	years int,
 	maxClass *int16,
+	scale AssetScale,
 ) (*Roadmap, error) {
 	if budgetPerYear <= 0 {
 		return nil, fmt.Errorf("budget per year must be positive")
@@ -132,10 +134,11 @@ func (s *service) Roadmap(
 		return roadmap, nil
 	}
 
-	candidates, skipped, err := s.buildCandidates(ctx, paths, maxClass)
+	candidates, skipped, err := s.buildCandidates(ctx, paths, maxClass, scale)
 	if err != nil {
 		return nil, err
 	}
+	roadmap.Scale = scale.normalized()
 	roadmap.Skipped = skipped
 	sortCandidates(candidates)
 
@@ -174,6 +177,7 @@ func (s *service) buildCandidates(
 	ctx context.Context,
 	paths []domain.PTSZIAttackPath,
 	maxClass *int16,
+	scale AssetScale,
 ) ([]Candidate, []SkippedCandidate, error) {
 	missing := missingControls(paths)
 	candidates := make([]Candidate, 0, len(missing))
@@ -190,7 +194,7 @@ func (s *service) buildCandidates(
 			return nil, nil, fmt.Errorf("search szi for %s: %w", ctrl.Code, err)
 		}
 
-		best, found := cheapest(certs, ctrl)
+		best, found := cheapest(certs, ctrl, scale.normalized())
 		if !found {
 			skipped = append(skipped, SkippedCandidate{
 				Candidate: Candidate{ControlCode: ctrl.Code, ControlName: ctrl.Name},
@@ -206,7 +210,7 @@ func (s *service) buildCandidates(
 
 // cheapest выбирает средство с минимальной верхней границей цены.
 // Планируем по верхней границе: бюджет должен сойтись и в худшем случае.
-func cheapest(certs []domain.SZICertificate, ctrl domain.PTSZIControl) (Candidate, bool) {
+func cheapest(certs []domain.SZICertificate, ctrl domain.PTSZIControl, scale AssetScale) (Candidate, bool) {
 	var best Candidate
 	found := false
 
@@ -215,7 +219,12 @@ func cheapest(certs []domain.SZICertificate, ctrl domain.PTSZIControl) (Candidat
 			if p.PriceMin == nil || p.PriceMax == nil {
 				continue
 			}
-			if found && *p.PriceMax >= best.CostMax {
+			units := unitCount(p.LicenseModel, scale)
+			total := *p.PriceMax * float64(units)
+			// Сравниваем по итоговой стоимости при этом масштабе, а не по
+			// цене за единицу: лицензия на станцию дешевле шасси поштучно,
+			// но на двухстах станциях выходит дороже.
+			if found && total >= best.TotalCost {
 				continue
 			}
 			best = Candidate{
@@ -228,6 +237,9 @@ func cheapest(certs []domain.SZICertificate, ctrl domain.PTSZIControl) (Candidat
 				CostMin:         *p.PriceMin,
 				CostMax:         *p.PriceMax,
 				LicenseModel:    p.LicenseModel,
+				PricingUnit:     pricingUnit(p.LicenseModel),
+				Units:           units,
+				TotalCost:       total,
 				SourceURL:       p.SourceURL,
 				SourceType:      p.SourceType,
 				Effectiveness:   defaultEffectiveness,
@@ -243,26 +255,36 @@ func cheapest(certs []domain.SZICertificate, ctrl domain.PTSZIControl) (Candidat
 
 // warnings собирает оговорки к плану.
 //
-// Главная из них про единицы лицензирования. Цены собраны за разные единицы:
-// одна за рабочее место, другая за шасси, третья за мобильное устройство.
-// Оптимизатор сравнивает их напрямую и потому охотно берёт формально дешёвое,
-// хотя для защиты сервера мобильная лицензия за 674 рубля не годится.
-// Привести цены к общей единице нельзя, пока в модели нет масштаба актива —
-// числа рабочих мест, серверов и каналов. До тех пор план читается как
-// «минимальная цена закрытия метода», а не как готовая смета.
+// Стоимость считается по масштабу актива, но сама единица лицензирования
+// выведена из поля license_model, а оно в источниках смешивает единицу со
+// сроком: «бессрочная лицензия на рабочее место» приходит одной строкой.
+// Там, где единицу пришлось угадывать, об этом лучше сказать вслух.
 func warnings(steps []Step) []string {
-	out := make([]string, 0, 2)
+	out := make([]string, 0, 3)
 
-	models := map[string]bool{}
+	guessed := make([]string, 0)
+	bundles := make([]string, 0)
 	for _, s := range steps {
-		if s.Candidate.LicenseModel != "" {
-			models[s.Candidate.LicenseModel] = true
+		switch s.Candidate.LicenseModel {
+		case "perpetual", "yearly":
+			// Единица выведена: в собранных данных такие позиции стоят
+			// за рабочее место, но в самом поле этого не написано.
+			guessed = append(guessed, s.Candidate.ProductName)
+		case "bundle", "":
+			// Пакет считается один раз независимо от масштаба, хотя внутри
+			// у него своё ограничение по числу мест.
+			bundles = append(bundles, s.Candidate.ProductName)
 		}
 	}
-	if len(models) > 1 {
-		out = append(out, "в плане смешаны разные единицы лицензирования "+
-			"(узел, сервер, шасси, комплект): суммарная стоимость условна, "+
-			"пока в модели нет масштаба актива")
+
+	if len(guessed) > 0 {
+		out = append(out, "единица лицензирования выведена из срока действия "+
+			"для: "+strings.Join(guessed, "; ")+" — цена принята за рабочее место, "+
+			"это стоит сверить с прайсом вендора")
+	}
+	if len(bundles) > 0 {
+		out = append(out, "позиции продаются комплектом и на масштаб не умножались: "+
+			strings.Join(bundles, "; ")+" — у комплекта своё ограничение по числу мест")
 	}
 
 	for _, s := range steps {
