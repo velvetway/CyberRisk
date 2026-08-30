@@ -19,6 +19,7 @@ import {
     ThreatSource,
     DestructiveAction,
 } from "../types/ptszi";
+import { AssetScale, OptimizerPlan, Roadmap } from "../types/optimizer";
 
 function getToken(): string | null {
     return localStorage.getItem("token");
@@ -232,6 +233,47 @@ export const api = {
 
     getPtsziVulnerableLinks(): Promise<PtsziVulnerableLink[]> {
         return request<PtsziVulnerableLink[]>("/api/ptszi/vulnerable-links");
+    },
+
+    /**
+     * Подбор комплекса средств в рамках единого бюджета.
+     *
+     * maxClass ограничивает выбор классом защиты ФСТЭК: средства слабее
+     * недопустимы для систем высокого класса защищённости.
+     */
+    optimizeAsset(
+        assetId: number,
+        budget: number,
+        scale: AssetScale,
+        maxClass?: number,
+    ): Promise<OptimizerPlan> {
+        const params = new URLSearchParams({
+            budget: String(budget),
+            workstations: String(scale.workstations),
+            servers: String(scale.servers),
+            appliances: String(scale.appliances),
+        });
+        if (maxClass) params.set("max_class", String(maxClass));
+        return request<OptimizerPlan>(`/api/ptszi/assets/${assetId}/optimize?${params}`);
+    },
+
+    /** План внедрения на несколько лет при годовом бюджете. */
+    getAssetRoadmap(
+        assetId: number,
+        budgetPerYear: number,
+        years: number,
+        scale: AssetScale,
+        maxClass?: number,
+    ): Promise<Roadmap> {
+        const params = new URLSearchParams({
+            budget_per_year: String(budgetPerYear),
+            years: String(years),
+            workstations: String(scale.workstations),
+            servers: String(scale.servers),
+            appliances: String(scale.appliances),
+        });
+        if (maxClass) params.set("max_class", String(maxClass));
+        return request<Roadmap>(`/api/ptszi/assets/${assetId}/roadmap?${params}`);
     },
 
     getPtsziControls(): Promise<PtsziControl[]> {

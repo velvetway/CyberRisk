@@ -18,6 +18,7 @@ export const NAV_ITEMS: NavItem[] = [
   { id: 'dashboard', path: '/',                label: 'Обзор',            icon: 'grid',     badge: null,  section: 'main', hidden: true },
   { id: 'riskmap',   path: '/risk/map',        label: 'Карта рисков',     icon: 'target',   badge: '5×5', section: 'main', hidden: true },
   { id: 'graph',     path: '/ptszi/model',     label: 'Граф атаки',       icon: 'flow',     badge: 'W',   section: 'main' },
+  { id: 'optimizer', path: '/ptszi/optimizer', label: 'Подбор СЗИ',       icon: 'zap',      badge: '₽',   section: 'main' },
   { id: 'assets',    path: '/assets',          label: 'Реестр активов',   icon: 'layers',   badge: null,  section: 'main' },
   { id: 'software',  path: '/software',        label: 'Справочник ПО',    icon: 'package',  badge: null,  section: 'main', hidden: true },
   { id: 'simulator', path: '/risk/preview',    label: 'Симулятор риска',  icon: 'zap',      badge: 'NEW', section: 'main', hidden: true },

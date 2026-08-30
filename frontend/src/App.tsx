@@ -12,6 +12,7 @@ import { RegisterPage } from "./pages/RegisterPage";
 import { AssetsPage } from "./pages/AssetsPage";
 import { AssetFormPage } from "./pages/AssetFormPage";
 import { PtsziModelPage } from "./pages/PtsziModelPage";
+import { OptimizerPage } from "./pages/OptimizerPage";
 
 type Theme = 'dark' | 'light';
 type Accent = 'indigo' | 'cyan' | 'emerald' | 'amber' | 'crimson';
@@ -126,6 +127,7 @@ function RoutedApp() {
       <Route path="/risk/preview" element={<Navigate to="/ptszi/model" replace />} />
       <Route path="/risk/map" element={<Navigate to="/ptszi/model" replace />} />
       <Route path="/ptszi/model" element={<LayoutGuard><PtsziModelPage /></LayoutGuard>} />
+      <Route path="/ptszi/optimizer" element={<LayoutGuard><OptimizerPage /></LayoutGuard>} />
       <Route path="/risk/graph" element={<Navigate to="/ptszi/model" replace />} />
       <Route path="/risk/graph/:assetId" element={<LayoutGuard><AssetPTSZIForward /></LayoutGuard>} />
       <Route path="*" element={<LayoutGuard><AssetsPage /></LayoutGuard>} />
